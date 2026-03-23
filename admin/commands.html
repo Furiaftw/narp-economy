@@ -19,15 +19,13 @@
 </div>
 <footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
 <script type="module">
-import { fetchAPI, forceRefresh, adminRefreshAW, fmtRyo } from '/js/api.js';
+import { fetchAPI, fmtRyo } from '/js/api.js';
 import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
 import { renderNav, renderError, sectionHeader, attachGlobalHandlers } from '/js/utils.js';
 
 document.getElementById('nav-mount').innerHTML = renderNav('commands');
 attachGlobalHandlers(login, logout);
 initAuth(async () => { if (!requireAdmin()) return; await render(); });
-
-let _refreshedAt = null;
 
 async function render() {
   const root  = document.getElementById('root');
@@ -36,13 +34,6 @@ async function render() {
   const noId  = (data.shop_items||[]).filter(i => i.name && (!i.item_id || i.item_id === '[item_id]'));
 
   root.innerHTML = `
-  <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.5rem">
-    <div style="font-size:0.85rem;color:var(--ash);font-style:italic">
-      ${_refreshedAt ? '⚡ Last refreshed: <strong style="color:var(--paper)">'+_refreshedAt+'</strong>' : 'Data from cache. Refresh to get latest values.'}
-    </div>
-    <button class="btn btn-ghost" id="refresh-btn">↺ Refresh from Sheet</button>
-  </div>
-
   ${sectionHeader('Tatsu Commands')}
   ${items.length === 0
     ? `<div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:2rem;text-align:center;color:var(--ash)">
@@ -76,20 +67,6 @@ async function render() {
       </tr>`).join('')}</tbody>
     </table>
   </div>` : ''}`;
-
-  document.getElementById('refresh-btn').addEventListener('click', async function() {
-    this.disabled = true; this.textContent = '↻ Refreshing...';
-    try {
-      const r = await adminRefreshAW();
-      _refreshedAt = new Date().toLocaleTimeString();
-      await forceRefresh();
-      await render();
-      alert('✅ Refreshed! Rows added: '+r.rows_added+' | Latest AW: '+r.latest_aw);
-    } catch(err) {
-      alert('Refresh failed: '+err.message);
-      this.disabled = false; this.textContent = '↺ Refresh from Sheet';
-    }
-  });
 
   document.getElementById('copy-all-btn')?.addEventListener('click', () => {
     const all = items.map(i => 't@shop edit price '+i.item_id+' '+Math.round(i.price_ryo||0)).join('\n');

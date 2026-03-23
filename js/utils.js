@@ -13,6 +13,7 @@ function renderNav(activePage) {
   ];
 
   const adminPages = [
+    { href: '/admin/history.html',    label: 'Weekly Update', key: 'history'   },
     { href: '/admin/dashboard.html',  label: 'Dashboard',  key: 'dashboard'  },
     { href: '/admin/shop.html',       label: 'Manage Shop', key: 'mgshop'    },
     { href: '/admin/economy.html',    label: 'Economy',    key: 'economy'    },
