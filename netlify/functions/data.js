@@ -9,7 +9,10 @@
 const { getStore, connectLambda } = require('@netlify/blobs');
 
 const DEFAULT_CONFIG = {
-  master_dial: 0.005,
+  master_dial:     0.005,
+  aw_floor:        200,
+  smoothing_alpha: 0.4,
+  aw_method:       'trimmed_mean',
   tiers: [
     { name: 'Lowest Cost', grp: 2    },
     { name: 'Base Cost',   grp: 4    },
@@ -64,7 +67,8 @@ exports.handler = async (event) => {
 
     // Calculate derived meta from latest history row
     const latest      = history.length > 0 ? history[history.length - 1] : null;
-    const current_aw  = latest?.final_aw  || 0;
+    const floor       = config.aw_floor || 200;
+    const current_aw  = latest?.final_aw  || floor;
     const weekly_change = latest?.pct_change || 0;
     const inequality_cv = latest?.cv || 0;
 

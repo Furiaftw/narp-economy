@@ -46,6 +46,39 @@ async function render() {
     const tiers  = getTiers(data);
     const history= data.history||[];
     const latest = history.length ? history[history.length-1] : null;
+    const pctChange = data.meta?.weekly_change || 0;
+
+    // Build safety alerts
+    const alerts = [];
+    if (history.length === 0) {
+      alerts.push({ icon: '⚠️', text: 'No economy data — prices using floor value only', cls: 'status-inflate' });
+    }
+    if (latest?.date) {
+      const daysSince = Math.floor((Date.now() - new Date(latest.date).getTime()) / (1000*60*60*24));
+      if (daysSince >= 8) {
+        alerts.push({ icon: '⚠️', text: 'Economy data is stale — weekly update overdue (' + daysSince + ' days)', cls: 'status-inflate' });
+      }
+    }
+    if (pctChange > 0.15) {
+      alerts.push({ icon: '⚠️', text: 'High Inflation — review before pushing prices (' + fmtPct(pctChange) + ')', cls: 'status-inflate' });
+    } else if (pctChange > 0.05) {
+      alerts.push({ icon: '📈', text: 'Mild Inflation — monitor (' + fmtPct(pctChange) + ')', cls: 'status-mild' });
+    } else if (pctChange < -0.05) {
+      alerts.push({ icon: '📉', text: 'Deflation — AW dropped (' + fmtPct(pctChange) + ')', cls: 'status-deflate' });
+    }
+    if (gini > 0.50) {
+      alerts.push({ icon: '🔴', text: 'Extreme inequality — switch to Median immediately (Gini: ' + gini.toFixed(3) + ')', cls: 'status-inflate' });
+    } else if (gini > 0.35) {
+      alerts.push({ icon: '🟠', text: 'High inequality — consider switching to Median (Gini: ' + gini.toFixed(3) + ')', cls: 'status-accel' });
+    }
+
+    const alertsHtml = alerts.length > 0 ? `
+    <div style="margin-bottom:1.5rem">
+      ${alerts.map(a => `<div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:0.75rem 1rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.75rem">
+        <span style="font-size:1.2rem">${a.icon}</span>
+        <span style="font-family:var(--ff-body);font-size:0.9rem;color:var(--paper)">${a.text}</span>
+      </div>`).join('')}
+    </div>` : '';
 
     root.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
@@ -54,6 +87,8 @@ async function render() {
       </div>
       <a href="/admin/history.html" class="btn btn-gold">Enter Weekly Data →</a>
     </div>
+
+    ${alertsHtml}
 
     ${sectionHeader('Live Metrics')}
     <div class="grid-3" style="margin-bottom:2.5rem">
@@ -80,6 +115,16 @@ async function render() {
       <a href="/admin/economy.html" class="btn btn-gold">Edit Economy Settings →</a>
       <a href="/admin/shop.html" class="btn btn-ghost">Manage Shop →</a>
       <a href="/admin/commands.html" class="btn btn-ghost">Tatsu Commands →</a>
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Currency Sink Reminder')}
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:1.25rem;margin-bottom:2rem">
+      <p style="color:var(--paper-dim);font-style:italic;margin:0;line-height:1.6">
+        The economy tracks accumulation but not destruction. If Ryo only enters and never leaves,
+        AW ratchets upward indefinitely. Aim for 30–50% of earned Ryo leaving circulation each cycle
+        through consumables, training fees, mission deposits, or cosmetic purchases.
+      </p>
     </div>`;
   } catch(err) { root.innerHTML = renderError(err.message); }
 }

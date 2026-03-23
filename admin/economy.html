@@ -59,7 +59,7 @@ let _dirty   = false;
 initAuth(async () => {
   if (!requireAdmin()) return;
   _data    = await fetchAPI();
-  _config  = JSON.parse(JSON.stringify(_data.config || { master_dial: 0.005, tiers: getTiers(_data) }));
+  _config  = JSON.parse(JSON.stringify(_data.config || { master_dial: 0.005, aw_floor: 200, smoothing_alpha: 0.4, aw_method: 'trimmed_mean', tiers: getTiers(_data) }));
   _incomes = JSON.parse(JSON.stringify(_data.income_types || []));
   renderPage();
 });
@@ -94,6 +94,35 @@ function renderPage() {
     </div>
   </div>
 
+  <!-- SAFETY VARIABLES -->
+  ${sectionHeader('Economy Safety Settings')}
+  <div class="settings-section">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem">
+      <div>
+        <div style="font-weight:bold;margin-bottom:0.25rem">AW Floor</div>
+        <div style="font-size:0.75rem;color:var(--ash);font-style:italic;margin-bottom:0.5rem">Economy never anchors below this value. Prevents ¥0 prices when no history exists.</div>
+        <input type="number" class="settings-input" id="floor-input"
+          value="${_config.aw_floor || 200}" step="10" min="0"
+          style="font-size:1rem;text-align:center;width:120px">
+      </div>
+      <div>
+        <div style="font-weight:bold;margin-bottom:0.25rem">Smoothing Alpha</div>
+        <div style="font-size:0.75rem;color:var(--ash);font-style:italic;margin-bottom:0.5rem">Controls how fast AW responds to weekly changes. Higher = faster response.</div>
+        <input type="number" class="settings-input" id="alpha-input"
+          value="${_config.smoothing_alpha || 0.4}" step="0.05" min="0.1" max="1.0"
+          style="font-size:1rem;text-align:center;width:120px">
+      </div>
+      <div>
+        <div style="font-weight:bold;margin-bottom:0.25rem">AW Method</div>
+        <div style="font-size:0.75rem;color:var(--ash);font-style:italic;margin-bottom:0.5rem">Switch to Median when Gini &gt; 0.35 to prevent whale inflation.</div>
+        <select id="method-input" class="settings-input" style="font-size:1rem;text-align:center;width:160px;text-align-last:center">
+          <option value="trimmed_mean" ${(_config.aw_method || 'trimmed_mean') === 'trimmed_mean' ? 'selected' : ''}>Trimmed Mean</option>
+          <option value="median" ${_config.aw_method === 'median' ? 'selected' : ''}>Median</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
   <!-- TIER COSTS -->
   ${sectionHeader('Tier Graded RP Costs')}
   <div class="settings-section">
@@ -123,7 +152,8 @@ function renderPage() {
     ${renderIncomeList(_incomes.filter(i => i.category === 'staff'), 'staff')}
   </div>`;
 
-  // Dial input
+  // Dial input with confirmation tracking
+  let _originalDial = _config.master_dial;
   document.getElementById('dial-input').addEventListener('input', function() {
     const v = parseFloat(this.value)||0.005;
     _config.master_dial = v;
@@ -131,6 +161,20 @@ function renderPage() {
     document.querySelectorAll('.tier-preview').forEach((el, i) => {
       el.textContent = fmtRyo((_config.tiers[i]?.grp||0) * v * aw);
     });
+    markDirty();
+  });
+
+  // Safety variable inputs
+  document.getElementById('floor-input').addEventListener('input', function() {
+    _config.aw_floor = parseFloat(this.value) || 200;
+    markDirty();
+  });
+  document.getElementById('alpha-input').addEventListener('input', function() {
+    _config.smoothing_alpha = parseFloat(this.value) || 0.4;
+    markDirty();
+  });
+  document.getElementById('method-input').addEventListener('change', function() {
+    _config.aw_method = this.value || 'trimmed_mean';
     markDirty();
   });
 
@@ -177,7 +221,7 @@ function renderPage() {
   document.getElementById('save-all-btn').addEventListener('click', saveAll);
   document.getElementById('discard-btn').addEventListener('click', async () => {
     _data    = await forceRefresh();
-    _config  = JSON.parse(JSON.stringify(_data.config || { master_dial:0.005, tiers:getTiers(_data) }));
+    _config  = JSON.parse(JSON.stringify(_data.config || { master_dial:0.005, aw_floor:200, smoothing_alpha:0.4, aw_method:'trimmed_mean', tiers:getTiers(_data) }));
     _incomes = JSON.parse(JSON.stringify(_data.income_types||[]));
     _dirty   = false;
     document.getElementById('save-bar').style.display = 'none';
@@ -218,6 +262,17 @@ function addIncome(category) {
 }
 
 async function saveAll() {
+  // Dial change confirmation
+  const originalDial = _data?.config?.master_dial ?? _data?.meta?.master_dial ?? 0.005;
+  if (_config.master_dial !== originalDial) {
+    const confirmed = confirm(
+      'Changing the Master Dial affects all prices and income simultaneously. ' +
+      'Graded RP effort ratios stay the same. Recommended: only change during planned ' +
+      'season resets, not week to week. Frequent changes feel unstable to players tracking goals. Continue?'
+    );
+    if (!confirmed) return;
+  }
+
   const btn = document.getElementById('save-all-btn');
   btn.textContent = 'Saving...'; btn.disabled = true;
   try {
