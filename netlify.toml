@@ -1,0 +1,49 @@
+[build]
+  publish = "."
+  command = "npm install"
+  functions = "netlify/functions"
+
+# ── API ROUTES ────────────────────────────────────────
+[[redirects]]
+  from   = "/api/data"
+  to     = "/.netlify/functions/data"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/save"
+  to     = "/.netlify/functions/admin-save"
+  status = 200
+
+[[redirects]]
+  from   = "/api/admin/refresh"
+  to     = "/.netlify/functions/admin-refresh"
+  status = 200
+
+# ── CLEAN URLS ────────────────────────────────────────
+[[redirects]]
+  from = "/shop"
+  to   = "/shop.html"
+  status = 200
+
+[[redirects]]
+  from = "/income"
+  to   = "/income.html"
+  status = 200
+
+# ── HEADERS ───────────────────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"

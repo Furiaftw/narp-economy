@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Economy — Income Rates</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+
+<section class="hero" style="padding:3.5rem 2rem 2.5rem">
+  <div class="hero-kamon">⚔️</div>
+  <div class="hero-eyebrow">Ninja Art Roleplay Platform</div>
+  <h1 class="hero-title"><em>Income</em> Rates</h1>
+  <p class="hero-sub">Current Ryo rewards for every activity. All values scale with the economy automatically.</p>
+</section>
+
+<div class="container">
+  <div id="income-root"><div class="loading-seal"><div class="spinner"></div><p>Loading rates...</p></div></div>
+</div>
+
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Ninja Art Roleplay Platform</span></footer>
+
+<script type="module">
+import { fetchAPI, calcAW, calcDial, calcBaseReward, fmtRyo, fmtNum } from '/js/api.js';
+import { initAuth, login, logout } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, statCard, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('income');
+initAuth();
+attachGlobalHandlers(login, logout);
+
+async function render() {
+  const root = document.getElementById('income-root');
+  try {
+    const data    = await fetchAPI();
+    const aw      = calcAW(data);
+    const dial    = calcDial(data);
+    const base    = calcBaseReward(data);
+    const incomes = (data.income_types || []).filter(i => i.category !== 'staff');
+    const sorted  = [...incomes].sort((a,b) => (a.grp||0)-(b.grp||0));
+
+    root.innerHTML = `
+    ${sectionHeader('Economy Reference')}
+    <div class="grid-3" style="margin-bottom:2.5rem">
+      ${statCard('Current AW',       fmtNum(aw),      'Economy anchor',          '', 'fade-in stagger-1')}
+      ${statCard('Master Dial',      dial.toFixed(4), 'Global reward multiplier', '', 'fade-in stagger-2')}
+      ${statCard('1 Graded RP earns',fmtRyo(base),    'Base unit of the economy', '', 'fade-in stagger-3')}
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Activity Rewards')}
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden;margin-bottom:2rem">
+      <table class="data-table">
+        <thead><tr>
+          <th>Activity</th><th>Graded RP Value</th><th>Ryo Reward</th>
+        </tr></thead>
+        <tbody>
+          ${sorted.map((inc,i) => `
+            <tr class="fade-in stagger-${(i%5)+1}">
+              <td><strong>${inc.name}</strong></td>
+              <td class="grp">${inc.grp} Graded RP</td>
+              <td class="ryo">${fmtRyo(inc.reward_value_ryo||0)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:1.5rem">
+      <div style="font-family:var(--ff-display);font-size:0.65rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--seal-gold);margin-bottom:0.75rem">
+        The Effort Guarantee
+      </div>
+      <p style="color:var(--paper-dim);font-style:italic">
+        These Ryo amounts update every week as the economy grows. The Graded RP values —
+        the <em>effort</em> — never change. A Standard item always costs 16 Graded RPs worth
+        of work, regardless of what that translates to in Ryo.
+      </p>
+    </div>`;
+  } catch(err) {
+    root.innerHTML = renderError(err.message);
+  }
+}
+render();
+</script>
+</body>
+</html>

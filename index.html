@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Economy — Shop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+
+<section class="hero" style="padding:3.5rem 2rem 2.5rem">
+  <div class="hero-seal">両</div>
+  <div class="hero-kamon">🛒</div>
+  <div class="hero-eyebrow">Ninja Art Roleplay Platform</div>
+  <h1 class="hero-title">The <em>Shop</em></h1>
+  <p class="hero-sub">All prices reflect the current economy and update weekly.</p>
+</section>
+
+<div class="container">
+  <div id="shop-root"><div class="loading-seal"><div class="spinner"></div><p>Loading shop...</p></div></div>
+</div>
+
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Ninja Art Roleplay Platform</span></footer>
+
+<script type="module">
+import { fetchAPI, fmtRyo, getTiers, tierCSSClass } from '/js/api.js';
+import { initAuth, login, logout } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, tierBadge, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('shop');
+initAuth();
+attachGlobalHandlers(login, logout);
+
+let allItems = [];
+let activeFilter = 'all';
+
+async function render() {
+  const root = document.getElementById('shop-root');
+  try {
+    const data  = await fetchAPI();
+    const tiers = getTiers(data);
+    allItems    = (data.shop_items || []).filter(i => i.name && !i.name.startsWith('['));
+
+    if (allItems.length === 0) {
+      root.innerHTML = `
+        <div style="text-align:center;padding:4rem 2rem;color:var(--ash)">
+          <div style="font-size:2rem;margin-bottom:1rem">🏪</div>
+          <div style="font-family:var(--ff-display);font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.5rem">No Items Yet</div>
+          <p style="font-style:italic">The shop is being stocked. Check back soon.</p>
+        </div>`;
+      return;
+    }
+
+    root.innerHTML = `
+    <div class="filter-bar">
+      <input class="search-input" id="shop-search" type="text" placeholder="Search items…">
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap" id="tier-filters">
+        <button class="filter-btn active" data-tier="all">All</button>
+        ${tiers.map(t => `<button class="filter-btn" data-tier="${t.name}">${t.name}</button>`).join('')}
+      </div>
+    </div>
+    ${sectionHeader('Shop Inventory')}
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden">
+      <table class="data-table">
+        <thead><tr>
+          <th>Item</th><th>Tier</th><th>Price</th><th>Effort</th>
+        </tr></thead>
+        <tbody id="shop-tbody"></tbody>
+      </table>
+    </div>
+    <p style="margin-top:1rem;font-size:0.8rem;color:var(--ash);font-style:italic;text-align:center">
+      Graded RP Effort is the true cost — it never changes regardless of how the economy grows.
+    </p>`;
+
+    renderRows(allItems);
+
+    document.getElementById('tier-filters').addEventListener('click', e => {
+      const btn = e.target.closest('.filter-btn');
+      if (!btn) return;
+      activeFilter = btn.dataset.tier;
+      document.querySelectorAll('#tier-filters .filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      applyFilters();
+    });
+    document.getElementById('shop-search').addEventListener('input', applyFilters);
+  } catch(err) {
+    root.innerHTML = renderError(err.message);
+  }
+}
+
+function renderRows(items) {
+  const tbody = document.getElementById('shop-tbody');
+  if (!tbody) return;
+  if (!items.length) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;color:var(--ash);padding:2rem">No items match.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = items.map(item => `
+    <tr class="fade-in">
+      <td><strong>${item.name}</strong></td>
+      <td>${tierBadge(item.tier || '—')}</td>
+      <td class="ryo">${fmtRyo(item.price_ryo || 0)}</td>
+      <td class="grp">${item.graded_rp_effort || '—'}</td>
+    </tr>`).join('');
+}
+
+function applyFilters() {
+  const q = (document.getElementById('shop-search')?.value||'').toLowerCase();
+  let f = allItems;
+  if (activeFilter !== 'all') f = f.filter(i => i.tier === activeFilter);
+  if (q) f = f.filter(i => i.name.toLowerCase().includes(q));
+  renderRows(f);
+}
+
+render();
+</script>
+</body>
+</html>

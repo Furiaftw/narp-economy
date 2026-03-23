@@ -1,0 +1,8 @@
+{
+  "name": "narp-economy",
+  "version": "2.0.0",
+  "description": "NARP Economy Website",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
