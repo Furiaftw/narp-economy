@@ -19,7 +19,7 @@
 </div>
 <footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
 <script type="module">
-import { fetchAPI, forceRefresh, adminRefreshAW, calcAW, calcDial, calcBaseReward,
+import { fetchAPI, forceRefresh, calcAW, calcDial, calcBaseReward,
          calcDialStatus, calcEconomyStatus, calcGini, calcGiniStatus,
          fmtRyo, fmtNum, fmtPct, fmtDate, getTiers, calcItemPrice } from '/js/api.js';
 import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
@@ -52,7 +52,7 @@ async function render() {
       <div style="font-size:0.8rem;color:var(--ash);font-style:italic">
         Last updated: ${fmtDate(latest?.date)} &nbsp;·&nbsp; ${data.meta?.player_count||0} players
       </div>
-      <button class="btn btn-ghost" id="refresh-btn">↺ Refresh AW from Sheet</button>
+      <a href="/admin/history.html" class="btn btn-gold">Enter Weekly Data →</a>
     </div>
 
     ${sectionHeader('Live Metrics')}
@@ -81,19 +81,6 @@ async function render() {
       <a href="/admin/shop.html" class="btn btn-ghost">Manage Shop →</a>
       <a href="/admin/commands.html" class="btn btn-ghost">Tatsu Commands →</a>
     </div>`;
-
-    document.getElementById('refresh-btn').addEventListener('click', async function() {
-      this.disabled = true; this.textContent = '↻ Refreshing...';
-      try {
-        const result = await adminRefreshAW();
-        const fresh  = await forceRefresh();
-        await render();
-        alert('✅ Refreshed!\nRows added: '+result.rows_added+'\nLatest AW: '+result.latest_aw);
-      } catch(err) {
-        alert('❌ Refresh failed: '+err.message);
-        this.disabled = false; this.textContent = '↺ Refresh AW from Sheet';
-      }
-    });
   } catch(err) { root.innerHTML = renderError(err.message); }
 }
 </script>

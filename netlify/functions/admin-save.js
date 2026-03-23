@@ -9,7 +9,7 @@
 //  as a comma-separated list: "email1@gmail.com,email2@gmail.com"
 // ─────────────────────────────────────────────────────
 
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 
 exports.handler = async (event) => {
   const headers = { 'Content-Type': 'application/json' };
@@ -50,6 +50,7 @@ exports.handler = async (event) => {
   }
 
   try {
+    connectLambda(event);
     const store = getStore('economy');
     await store.setJSON(key, data);
     return {

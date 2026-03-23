@@ -6,7 +6,7 @@
 //  Called by the website on every page load (with cache).
 // ─────────────────────────────────────────────────────
 
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 
 const DEFAULT_CONFIG = {
   master_dial: 0.005,
@@ -46,6 +46,7 @@ exports.handler = async (event) => {
   };
 
   try {
+    connectLambda(event);
     const store = getStore('economy');
 
     // Read all data in parallel

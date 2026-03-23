@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Weekly Update</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    .history-form { background:var(--ink-mid); border:1px solid var(--border-dim); border-radius:var(--radius-lg); padding:1.5rem; margin-bottom:2rem; }
+    .player-table { width:100%; border-collapse:collapse; margin:1rem 0; }
+    .player-table th, .player-table td { padding:0.4rem 0.6rem; text-align:left; border-bottom:1px solid var(--border-dim); }
+    .player-table th { font-family:var(--ff-display); font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ash); }
+    .player-table input[type="number"] {
+      width:100%; background:var(--ink-deep); border:1px solid var(--border-dim); border-radius:var(--radius);
+      padding:0.4rem 0.6rem; color:var(--paper); font-family:var(--ff-body); font-size:0.95rem; outline:none; transition:border-color 0.2s;
+    }
+    .player-table input[type="number"]:focus { border-color:var(--seal-gold); }
+    .player-table .remove-row { background:none; border:none; color:var(--seal-red); cursor:pointer; font-size:0.8rem; padding:0.3rem 0.5rem; opacity:0.6; transition:opacity 0.2s; }
+    .player-table .remove-row:hover { opacity:1; }
+    .date-input {
+      background:var(--ink-deep); border:1px solid var(--border-dim); border-radius:var(--radius);
+      padding:0.5rem 0.8rem; color:var(--paper); font-family:var(--ff-body); font-size:0.95rem; outline:none; transition:border-color 0.2s;
+    }
+    .date-input:focus { border-color:var(--seal-gold); }
+    .settings-panel { margin-top:1rem; }
+    .settings-toggle { background:none; border:none; color:var(--seal-gold); cursor:pointer; font-family:var(--ff-display); font-size:0.7rem; letter-spacing:0.1em; text-transform:uppercase; padding:0; }
+    .settings-toggle:hover { text-decoration:underline; }
+    .settings-body { display:none; margin-top:0.75rem; padding:0.75rem; background:var(--ink-deep); border-radius:var(--radius); }
+    .settings-body.open { display:flex; gap:1.5rem; flex-wrap:wrap; }
+    .settings-field label { display:block; font-family:var(--ff-display); font-size:0.6rem; letter-spacing:0.1em; text-transform:uppercase; color:var(--ash); margin-bottom:0.3rem; }
+    .settings-field input {
+      background:var(--ink-mid); border:1px solid var(--border-dim); border-radius:var(--radius);
+      padding:0.4rem 0.6rem; color:var(--paper); font-family:var(--ff-body); font-size:0.95rem; outline:none; width:100px; transition:border-color 0.2s;
+    }
+    .settings-field input:focus { border-color:var(--seal-gold); }
+    .preview-panel { background:var(--ink-deep); border:1px solid var(--border-dim); border-radius:var(--radius); padding:1rem 1.25rem; margin-top:1rem; }
+    .preview-panel h4 { font-family:var(--ff-display); font-size:0.65rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--seal-gold); margin:0 0 0.75rem; }
+    .preview-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:0.75rem; }
+    .preview-stat { text-align:center; }
+    .preview-stat .val { font-family:var(--ff-display); font-size:1.1rem; color:var(--paper); }
+    .preview-stat .lbl { font-size:0.7rem; color:var(--ash); margin-top:0.2rem; }
+  </style>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Staff Tool</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)">Weekly <em>Update</em></h1>
+  <p class="hero-sub">Enter weekly player balances to update the economy.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, adminSave, forceRefresh, fmtRyo, fmtNum, fmtPct, fmtDate } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('history');
+attachGlobalHandlers(login, logout);
+initAuth(async () => { if (!requireAdmin()) return; await render(); });
+
+/* ── Economy calculations ──────────────────────────── */
+function calcTrimmedMean(values) {
+  if (values.length === 0) return 0;
+  if (values.length < 3) return values.reduce((s,v) => s+v, 0) / values.length;
+  const sorted = [...values].sort((a,b) => a - b);
+  const trimmed = sorted.slice(1, -1);
+  return trimmed.reduce((s,v) => s+v, 0) / trimmed.length;
+}
+
+function calcSmoothedAW(trimmedMean, previousSmoothedAW, alpha = 0.4) {
+  if (previousSmoothedAW === null) return trimmedMean;
+  return alpha * trimmedMean + (1 - alpha) * previousSmoothedAW;
+}
+
+function calcFinalAW(smoothedAW, floor = 200) {
+  return Math.max(smoothedAW, floor);
+}
+
+function calcCV(values) {
+  if (values.length === 0) return 0;
+  const mean = values.reduce((s,v) => s+v, 0) / values.length;
+  const variance = values.reduce((s,v) => s + Math.pow(v - mean, 2), 0) / values.length;
+  return mean > 0 ? Math.sqrt(variance) / mean : 0;
+}
+
+function calcPctChange(currentFinalAW, previousFinalAW) {
+  if (previousFinalAW === null || previousFinalAW === 0) return null;
+  return (currentFinalAW - previousFinalAW) / previousFinalAW;
+}
+
+/* ── State ─────────────────────────────────────────── */
+let _history = [];
+let _alpha = 0.4;
+let _floor = 200;
+
+async function render() {
+  const root = document.getElementById('root');
+  try {
+    const data = await fetchAPI();
+    _history = data.history || [];
+    renderPage(root);
+  } catch(err) { root.innerHTML = renderError(err.message); }
+}
+
+function renderPage(root) {
+  const today = new Date().toISOString().split('T')[0];
+  const prevEntry = _history.length > 0 ? _history[_history.length - 1] : null;
+
+  root.innerHTML = `
+  ${sectionHeader('Add Weekly Entry')}
+  <div class="history-form fade-in">
+    <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem">
+      <label style="font-family:var(--ff-display);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Date</label>
+      <input type="date" id="entry-date" class="date-input" value="${today}">
+    </div>
+
+    <div style="font-family:var(--ff-display);font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);margin-bottom:0.5rem">
+      Player Ryo Balances <span style="color:var(--paper-dim)">(highest to lowest)</span>
+    </div>
+    <table class="player-table">
+      <thead><tr><th>#</th><th>Ryo Balance</th><th></th></tr></thead>
+      <tbody id="player-rows"></tbody>
+    </table>
+    <button class="btn btn-ghost" id="add-player-btn" style="margin-top:0.5rem;font-size:0.75rem">+ Add Player</button>
+
+    <div class="settings-panel">
+      <button class="settings-toggle" id="settings-toggle">▸ Advanced Settings</button>
+      <div class="settings-body" id="settings-body">
+        <div class="settings-field">
+          <label>Smoothing Alpha</label>
+          <input type="number" id="alpha-input" value="0.4" step="0.05" min="0" max="1">
+        </div>
+        <div class="settings-field">
+          <label>AW Floor</label>
+          <input type="number" id="floor-input" value="200" step="10" min="0">
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-panel" id="preview-panel">
+      <h4>Live Preview</h4>
+      <div class="preview-grid">
+        <div class="preview-stat"><div class="val" id="pv-tm">—</div><div class="lbl">Trimmed Mean</div></div>
+        <div class="preview-stat"><div class="val" id="pv-saw">—</div><div class="lbl">Smoothed AW</div></div>
+        <div class="preview-stat"><div class="val" id="pv-faw">—</div><div class="lbl">Final AW</div></div>
+        <div class="preview-stat"><div class="val" id="pv-cv">—</div><div class="lbl">Inequality CV</div></div>
+      </div>
+    </div>
+
+    <div style="margin-top:1.25rem;display:flex;gap:1rem;flex-wrap:wrap">
+      <button class="btn btn-gold" id="save-btn">Save Entry</button>
+      <span id="save-status" style="font-size:0.85rem;color:var(--ash);align-self:center"></span>
+    </div>
+  </div>
+
+  <div class="brush-divider"></div>
+  ${sectionHeader('History Log')}
+  <div id="history-log" class="fade-in stagger-2"></div>`;
+
+  // Initialize player rows
+  initPlayerRows(10);
+  bindEvents(prevEntry);
+  renderHistoryLog();
+  updatePreview(prevEntry);
+}
+
+function initPlayerRows(count) {
+  const tbody = document.getElementById('player-rows');
+  tbody.innerHTML = '';
+  for (let i = 0; i < count; i++) addPlayerRow();
+}
+
+function addPlayerRow(value) {
+  const tbody = document.getElementById('player-rows');
+  const idx = tbody.rows.length + 1;
+  const row = tbody.insertRow();
+  row.innerHTML = `
+    <td style="width:2rem;color:var(--ash);font-size:0.8rem">${idx}</td>
+    <td><input type="number" class="player-val" placeholder="Ryo balance" min="0" ${value !== undefined ? 'value="'+value+'"' : ''}></td>
+    <td style="width:2rem"><button class="remove-row" title="Remove">✕</button></td>`;
+}
+
+function renumberRows() {
+  const rows = document.getElementById('player-rows').rows;
+  for (let i = 0; i < rows.length; i++) {
+    rows[i].cells[0].textContent = i + 1;
+  }
+}
+
+function getPlayerValues() {
+  return [...document.querySelectorAll('.player-val')]
+    .map(el => parseFloat(el.value))
+    .filter(v => !isNaN(v) && v >= 0);
+}
+
+function updatePreview(prevEntry) {
+  const values = getPlayerValues();
+  const alpha = parseFloat(document.getElementById('alpha-input')?.value) || _alpha;
+  const floor = parseFloat(document.getElementById('floor-input')?.value) || _floor;
+
+  if (values.length === 0) {
+    document.getElementById('pv-tm').textContent = '—';
+    document.getElementById('pv-saw').textContent = '—';
+    document.getElementById('pv-faw').textContent = '—';
+    document.getElementById('pv-cv').textContent = '—';
+    return;
+  }
+
+  const tm = calcTrimmedMean(values);
+  const prevSmoothed = prevEntry?.smoothed_aw ?? null;
+  const saw = calcSmoothedAW(tm, prevSmoothed, alpha);
+  const faw = calcFinalAW(saw, floor);
+  const cv = calcCV(values);
+
+  document.getElementById('pv-tm').textContent = fmtNum(Math.round(tm));
+  document.getElementById('pv-saw').textContent = fmtNum(Math.round(saw));
+  document.getElementById('pv-faw').textContent = fmtNum(Math.round(faw));
+  document.getElementById('pv-cv').textContent = cv.toFixed(3);
+}
+
+function bindEvents(prevEntry) {
+  // Add player row
+  document.getElementById('add-player-btn').addEventListener('click', () => {
+    const tbody = document.getElementById('player-rows');
+    if (tbody.rows.length >= 30) return alert('Maximum 30 players.');
+    addPlayerRow();
+  });
+
+  // Remove player row (delegated)
+  document.getElementById('player-rows').addEventListener('click', e => {
+    if (!e.target.classList.contains('remove-row')) return;
+    const tbody = document.getElementById('player-rows');
+    if (tbody.rows.length <= 1) return;
+    e.target.closest('tr').remove();
+    renumberRows();
+    updatePreview(prevEntry);
+  });
+
+  // Live preview on input
+  document.getElementById('player-rows').addEventListener('input', () => updatePreview(prevEntry));
+  document.getElementById('alpha-input').addEventListener('input', () => {
+    _alpha = parseFloat(document.getElementById('alpha-input').value) || 0.4;
+    updatePreview(prevEntry);
+  });
+  document.getElementById('floor-input').addEventListener('input', () => {
+    _floor = parseFloat(document.getElementById('floor-input').value) || 200;
+    updatePreview(prevEntry);
+  });
+
+  // Settings toggle
+  document.getElementById('settings-toggle').addEventListener('click', function() {
+    const body = document.getElementById('settings-body');
+    const open = body.classList.toggle('open');
+    this.textContent = (open ? '▾' : '▸') + ' Advanced Settings';
+  });
+
+  // Save
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const date = document.getElementById('entry-date').value;
+    if (!date) return alert('Please select a date.');
+
+    const values = getPlayerValues();
+    if (values.length < 3) return alert('Enter at least 3 player balances.');
+
+    // Check for duplicate date
+    if (_history.some(h => h.date === date)) {
+      if (!confirm('An entry for ' + date + ' already exists. Replace it?')) return;
+      _history = _history.filter(h => h.date !== date);
+    }
+
+    const alpha = parseFloat(document.getElementById('alpha-input').value) || 0.4;
+    const floor = parseFloat(document.getElementById('floor-input').value) || 200;
+
+    // Sort values descending for storage
+    const sorted = [...values].sort((a,b) => b - a);
+
+    const tm = calcTrimmedMean(sorted);
+
+    // Find previous entry (by date order) for smoothing
+    const tempHistory = [..._history].sort((a,b) => new Date(a.date) - new Date(b.date));
+    const prevEntry = tempHistory.length > 0 ? tempHistory[tempHistory.length - 1] : null;
+    const prevSmoothed = prevEntry?.smoothed_aw ?? null;
+    const prevFinalAW = prevEntry?.final_aw ?? null;
+
+    const saw = calcSmoothedAW(tm, prevSmoothed, alpha);
+    const faw = calcFinalAW(saw, floor);
+    const cv = calcCV(sorted);
+    const pct = calcPctChange(faw, prevFinalAW);
+
+    const entry = {
+      date,
+      players: sorted,
+      player_count: sorted.length,
+      trimmed_mean: Math.round(tm * 100) / 100,
+      smoothed_aw: Math.round(saw * 100) / 100,
+      final_aw: Math.round(faw * 100) / 100,
+      cv: Math.round(cv * 1000) / 1000,
+      pct_change: pct !== null ? Math.round(pct * 10000) / 10000 : null,
+    };
+
+    _history.push(entry);
+    _history.sort((a,b) => new Date(a.date) - new Date(b.date));
+
+    const btn = document.getElementById('save-btn');
+    const status = document.getElementById('save-status');
+    btn.disabled = true; btn.textContent = 'Saving...';
+    status.textContent = '';
+
+    try {
+      await adminSave('history', _history);
+      await forceRefresh();
+      status.style.color = 'var(--jade)';
+      status.textContent = 'Saved successfully!';
+      btn.textContent = 'Save Entry'; btn.disabled = false;
+      renderPage(document.getElementById('root'));
+    } catch(err) {
+      status.style.color = 'var(--seal-red)';
+      status.textContent = 'Error: ' + err.message;
+      btn.textContent = 'Save Entry'; btn.disabled = false;
+      // Remove the failed entry
+      _history = _history.filter(h => h !== entry);
+    }
+  });
+}
+
+function renderHistoryLog() {
+  const container = document.getElementById('history-log');
+  if (_history.length === 0) {
+    container.innerHTML = `<div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:2rem;text-align:center;color:var(--ash)">
+      No history entries yet. Add the first weekly entry above.
+    </div>`;
+    return;
+  }
+
+  const sorted = [..._history].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  container.innerHTML = `
+  <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:var(--radius-lg);overflow:hidden">
+    <table class="data-table">
+      <thead><tr>
+        <th>Date</th>
+        <th>Players</th>
+        <th>Final AW</th>
+        <th>Trimmed Mean</th>
+        <th>CV</th>
+        <th>% Change</th>
+        <th></th>
+      </tr></thead>
+      <tbody>${sorted.map(h => `<tr>
+        <td>${fmtDate(h.date)}</td>
+        <td>${h.player_count}</td>
+        <td class="ryo">${fmtRyo(h.final_aw)}</td>
+        <td>${fmtNum(Math.round(h.trimmed_mean))}</td>
+        <td>${h.cv.toFixed(3)}</td>
+        <td>${h.pct_change !== null ? fmtPct(h.pct_change) : '—'}</td>
+        <td><button class="btn btn-ghost delete-entry" data-date="${h.date}" style="font-size:0.7rem;padding:0.25rem 0.5rem;color:var(--seal-red);border-color:var(--seal-red)">Delete</button></td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>`;
+
+  // Bind delete buttons
+  container.querySelectorAll('.delete-entry').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const date = this.dataset.date;
+      if (!confirm('Delete entry for ' + date + '?')) return;
+      this.disabled = true; this.textContent = '...';
+      _history = _history.filter(h => h.date !== date);
+      try {
+        await adminSave('history', _history);
+        await forceRefresh();
+        renderPage(document.getElementById('root'));
+      } catch(err) {
+        alert('Delete failed: ' + err.message);
+        this.disabled = false; this.textContent = 'Delete';
+      }
+    });
+  });
+}
+</script>
+</body>
+</html>
