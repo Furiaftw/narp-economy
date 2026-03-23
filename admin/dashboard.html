@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Panel</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)">Economy <em>Dashboard</em></h1>
+  <p class="hero-sub">Live economy health. Visible to admins only.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, forceRefresh, adminRefreshAW, calcAW, calcDial, calcBaseReward,
+         calcDialStatus, calcEconomyStatus, calcGini, calcGiniStatus,
+         fmtRyo, fmtNum, fmtPct, fmtDate, getTiers, calcItemPrice } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, statCard, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('dashboard');
+attachGlobalHandlers(login, logout);
+initAuth(async user => {
+  if (!requireAdmin()) return;
+  await render();
+});
+
+async function render() {
+  const root = document.getElementById('root');
+  try {
+    const data   = await fetchAPI();
+    const aw     = calcAW(data);
+    const dial   = calcDial(data);
+    const base   = calcBaseReward(data);
+    const dialSt = calcDialStatus(dial);
+    const econSt = calcEconomyStatus(data.meta?.weekly_change||0);
+    const gini   = calcGini(data);
+    const giniSt = calcGiniStatus(gini);
+    const tiers  = getTiers(data);
+    const history= data.history||[];
+    const latest = history.length ? history[history.length-1] : null;
+
+    root.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:1rem">
+      <div style="font-size:0.8rem;color:var(--ash);font-style:italic">
+        Last updated: ${fmtDate(latest?.date)} &nbsp;·&nbsp; ${data.meta?.player_count||0} players
+      </div>
+      <button class="btn btn-ghost" id="refresh-btn">↺ Refresh AW from Sheet</button>
+    </div>
+
+    ${sectionHeader('Live Metrics')}
+    <div class="grid-3" style="margin-bottom:2.5rem">
+      ${statCard('Current AW', fmtNum(aw), 'Average wealth anchor', '', 'fade-in stagger-1')}
+      ${statCard('1 Graded RP earns', fmtRyo(base), 'Base reward',
+        `<span class="card-status ${dialSt.cls}">${dialSt.label}</span>`, 'fade-in stagger-2')}
+      ${statCard('Economy Status', econSt.label, `Week change: ${fmtPct(data.meta?.weekly_change||0)}`,
+        `<span class="card-status ${econSt.cls}">${fmtPct(data.meta?.weekly_change||0)}</span>`, 'fade-in stagger-3')}
+      ${statCard('Master Dial', dial.toFixed(4), 'Edit in Economy Settings',
+        `<span class="card-status ${dialSt.cls}">${dialSt.label}</span>`, 'fade-in stagger-4')}
+      ${statCard('Gini Estimate', gini.toFixed(3), 'Wealth inequality',
+        `<span class="card-status ${giniSt.cls}">${giniSt.label}</span>`, 'fade-in stagger-5')}
+      ${statCard('Player Count', data.meta?.player_count||0, 'In active sample', '', 'fade-in stagger-1')}
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Current Tier Prices')}
+    <div class="grid-3" style="margin-bottom:2rem">
+      ${tiers.map((t,i) => statCard(t.name, fmtRyo(calcItemPrice(t.grp,data)),
+        t.grp+' Graded RP', '', 'fade-in stagger-'+((i%5)+1))).join('')}
+    </div>
+
+    <div style="display:flex;gap:1rem;flex-wrap:wrap">
+      <a href="/admin/economy.html" class="btn btn-gold">Edit Economy Settings →</a>
+      <a href="/admin/shop.html" class="btn btn-ghost">Manage Shop →</a>
+      <a href="/admin/commands.html" class="btn btn-ghost">Tatsu Commands →</a>
+    </div>`;
+
+    document.getElementById('refresh-btn').addEventListener('click', async function() {
+      this.disabled = true; this.textContent = '↻ Refreshing...';
+      try {
+        const result = await adminRefreshAW();
+        const fresh  = await forceRefresh();
+        await render();
+        alert('✅ Refreshed!\nRows added: '+result.rows_added+'\nLatest AW: '+result.latest_aw);
+      } catch(err) {
+        alert('❌ Refresh failed: '+err.message);
+        this.disabled = false; this.textContent = '↺ Refresh AW from Sheet';
+      }
+    });
+  } catch(err) { root.innerHTML = renderError(err.message); }
+}
+</script>
+</body>
+</html>

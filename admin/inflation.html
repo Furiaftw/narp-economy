@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Inflation History</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Analysis</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)"><em>Inflation</em> History</h1>
+  <p class="hero-sub">Average Wealth trajectory over time.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading history...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, fmtRyo, fmtDate, fmtPct, calcEconomyStatus } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, statCard, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('inflation');
+attachGlobalHandlers(login, logout);
+initAuth(async () => { if (!requireAdmin()) return; await render(); });
+
+async function render() {
+  const root = document.getElementById('root');
+  try {
+    const data    = await fetchAPI();
+    const history = (data.history||[]).filter(h=>h.date);
+    const latest  = history[history.length-1]||{};
+    const econSt  = calcEconomyStatus(latest.pct_change||0);
+
+    root.innerHTML = `
+    ${sectionHeader('Latest Snapshot')}
+    <div class="grid-3" style="margin-bottom:2.5rem">
+      ${statCard('Current Final AW', fmtRyo(latest.final_aw||0).replace('¥',''), 'As of '+fmtDate(latest.date), '', 'fade-in stagger-1')}
+      ${statCard('Week-over-Week', fmtPct(latest.pct_change||0), 'vs previous update',
+        `<span class="card-status ${econSt.cls}">${econSt.label}</span>`, 'fade-in stagger-2')}
+      ${statCard('Inequality (CV)', (latest.cv||0).toFixed(3), 'Coefficient of variation', '', 'fade-in stagger-3')}
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Average Wealth Over Time')}
+    <div class="chart-wrap fade-in" style="margin-bottom:2rem">
+      <canvas id="aw-chart" height="280"></canvas>
+    </div>
+
+    ${sectionHeader('Weekly % Change')}
+    <div class="chart-wrap fade-in" style="margin-bottom:2rem">
+      <canvas id="change-chart" height="180"></canvas>
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Full History Log')}
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden">
+      <table class="data-table">
+        <thead><tr><th>Date</th><th>Final AW</th><th>Trimmed Mean</th><th>Smoothed AW</th><th>CV</th><th>% Change</th></tr></thead>
+        <tbody>
+          ${[...history].reverse().map(h=>{
+            const st = h.pct_change!=null?calcEconomyStatus(h.pct_change):null;
+            return `<tr>
+              <td>${fmtDate(h.date)}</td>
+              <td class="ryo">${fmtRyo(h.final_aw||0)}</td>
+              <td style="color:var(--ash-light)">${fmtRyo(h.trimmed_mean||0)}</td>
+              <td style="color:var(--ash-light)">${fmtRyo(h.smoothed_aw||0)}</td>
+              <td style="color:var(--chakra)">${(h.cv||0).toFixed(3)}</td>
+              <td>${h.pct_change!=null?`<span class="card-status ${st.cls}" style="font-size:0.65rem">${fmtPct(h.pct_change)}</span>`:'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+    const labels = history.map(h=>fmtDate(h.date));
+    const grid   = 'rgba(201,168,76,0.08)';
+    const text   = '#6b6457';
+    const opts   = { borderWidth:2, pointRadius:4, tension:0.3 };
+
+    new Chart(document.getElementById('aw-chart'), {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'Final AW',    data:history.map(h=>h.final_aw||0),    borderColor:'#c9a84c', backgroundColor:'rgba(201,168,76,0.08)', fill:true, ...opts },
+        { label:'Smoothed AW', data:history.map(h=>h.smoothed_aw||0), borderColor:'#4a9eff', backgroundColor:'transparent', borderDash:[4,4], ...opts },
+      ]},
+      options:{ responsive:true, plugins:{ legend:{ labels:{ color:text } }, tooltip:{ backgroundColor:'#1a1812', borderColor:'rgba(201,168,76,0.3)', borderWidth:1 } },
+        scales:{ x:{ ticks:{ color:text }, grid:{ color:grid } }, y:{ ticks:{ color:text, callback:v=>'¥'+v.toLocaleString() }, grid:{ color:grid } } } }
+    });
+
+    const changes = history.map(h=>h.pct_change!=null?(h.pct_change*100):null);
+    new Chart(document.getElementById('change-chart'), {
+      type:'bar',
+      data:{ labels, datasets:[{ label:'% Change', data:changes,
+        backgroundColor:changes.map(v=>v==null?'transparent':v>15?'rgba(192,57,43,0.6)':v>5?'rgba(201,168,76,0.5)':v<-5?'rgba(74,158,255,0.5)':'rgba(45,122,94,0.5)'),
+        borderWidth:1 }]},
+      options:{ responsive:true, plugins:{ legend:{ labels:{ color:text } }, tooltip:{ backgroundColor:'#1a1812', borderColor:'rgba(201,168,76,0.3)', borderWidth:1 } },
+        scales:{ x:{ ticks:{ color:text }, grid:{ color:grid } }, y:{ ticks:{ color:text, callback:v=>v+'%' }, grid:{ color:grid } } } }
+    });
+  } catch(err) { root.innerHTML = renderError(err.message); }
+}
+</script>
+</body>
+</html>

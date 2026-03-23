@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Economy Settings</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    .settings-section { background: var(--ink-mid); border: 1px solid var(--border-dim); border-radius: 8px; padding: 1.5rem; margin-bottom: 2rem; }
+    .settings-row { display: grid; grid-template-columns: 1fr 140px 140px 80px; gap: 0.75rem; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid rgba(201,168,76,0.05); }
+    .settings-row:last-child { border-bottom: none; }
+    .settings-row label { font-family: var(--ff-body); font-size: 0.95rem; }
+    .settings-input {
+      background: var(--ink-light); border: 1px solid var(--border-dim); border-radius: 4px;
+      padding: 0.4rem 0.6rem; color: var(--paper); font-family: var(--ff-display); font-size: 0.9rem;
+      text-align: right; outline: none; width: 100%; transition: border-color 0.2s;
+    }
+    .settings-input:focus { border-color: var(--seal-gold); }
+    .preview-val { font-family: var(--ff-display); font-size: 0.85rem; color: var(--seal-gold); text-align: right; }
+    .del-btn { background: transparent; border: 1px solid rgba(192,57,43,0.3); color: #e07060; border-radius: 4px; padding: 0.3rem 0.6rem; font-size: 0.6rem; font-family: var(--ff-display); cursor: pointer; transition: all 0.2s; }
+    .del-btn:hover { background: rgba(192,57,43,0.1); }
+    .add-row { display: grid; grid-template-columns: 1fr 140px 80px; gap: 0.75rem; align-items: center; padding-top: 0.75rem; border-top: 1px solid var(--border-dim); margin-top: 0.75rem; }
+    .save-bar { position: sticky; bottom: 0; background: var(--ink-deep); border-top: 1px solid var(--border-dim); padding: 1rem 2rem; display: flex; gap: 1rem; align-items: center; z-index: 10; }
+    .unsaved-dot { width: 8px; height: 8px; background: var(--seal-red); border-radius: 50%; display: none; }
+    .unsaved-dot.show { display: inline-block; }
+  </style>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2rem">
+  <div class="hero-eyebrow">Admin Panel</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)">Economy <em>Settings</em></h1>
+  <p class="hero-sub">Edit master dial, tier costs, and all income types.</p>
+</section>
+<div class="container" style="padding-bottom:6rem">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading settings...</p></div></div>
+</div>
+<div class="save-bar" id="save-bar" style="display:none">
+  <span class="unsaved-dot show" id="unsaved-dot"></span>
+  <span style="font-size:0.8rem;color:var(--ash);font-style:italic" id="save-status">Unsaved changes</span>
+  <button class="btn btn-gold" id="save-all-btn">Save All Changes</button>
+  <button class="btn btn-ghost" id="discard-btn">Discard</button>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, forceRefresh, adminSave, calcDial, calcAW, fmtRyo, getTiers } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('economy');
+attachGlobalHandlers(login, logout);
+
+let _data    = null;
+let _config  = null;
+let _incomes = null;
+let _dirty   = false;
+
+initAuth(async () => {
+  if (!requireAdmin()) return;
+  _data    = await fetchAPI();
+  _config  = JSON.parse(JSON.stringify(_data.config || { master_dial: 0.005, tiers: getTiers(_data) }));
+  _incomes = JSON.parse(JSON.stringify(_data.income_types || []));
+  renderPage();
+});
+
+function markDirty() {
+  _dirty = true;
+  document.getElementById('save-bar').style.display = 'flex';
+}
+
+function calcRyo(grp) {
+  const aw = calcAW(_data);
+  return aw > 0 ? fmtRyo(grp * _config.master_dial * aw) : '—';
+}
+
+function renderPage() {
+  const root = document.getElementById('root');
+  const aw   = calcAW(_data);
+
+  root.innerHTML = `
+  <!-- MASTER DIAL -->
+  ${sectionHeader('Master Dial')}
+  <div class="settings-section">
+    <div style="display:grid;grid-template-columns:1fr 180px 180px;gap:1rem;align-items:center">
+      <div>
+        <div style="font-weight:bold;margin-bottom:0.25rem">Graded RP Reward Target</div>
+        <div style="font-size:0.8rem;color:var(--ash);font-style:italic">Baseline is 0.005. Higher = bigger rewards and prices. Effort ratios never change.</div>
+      </div>
+      <input type="number" class="settings-input" id="dial-input"
+        value="${_config.master_dial}" step="0.0001" min="0.001" max="0.1"
+        style="font-size:1.1rem;text-align:center">
+      <div class="preview-val" id="dial-preview">1 GRP = ${fmtRyo(1 * _config.master_dial * aw)}</div>
+    </div>
+  </div>
+
+  <!-- TIER COSTS -->
+  ${sectionHeader('Tier Graded RP Costs')}
+  <div class="settings-section">
+    <div style="display:grid;grid-template-columns:1fr 140px 140px;gap:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:0.5rem">
+      <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Tier</span>
+      <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);text-align:right">GRP Cost</span>
+      <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);text-align:right">Ryo at current AW</span>
+    </div>
+    ${(_config.tiers||[]).map((t,i) => `
+      <div class="settings-row">
+        <label>${t.name}</label>
+        <input type="number" class="settings-input tier-grp" data-idx="${i}"
+          value="${t.grp}" min="1" step="1">
+        <div class="preview-val tier-preview" data-idx="${i}">${calcRyo(t.grp)}</div>
+      </div>`).join('')}
+  </div>
+
+  <!-- PLAYER INCOMES -->
+  ${sectionHeader('Player Income Types')}
+  <div class="settings-section" id="player-incomes-wrap">
+    ${renderIncomeList(_incomes.filter(i => i.category !== 'staff'), 'player')}
+  </div>
+
+  <!-- STAFF INCOMES -->
+  ${sectionHeader('Staff Income Types')}
+  <div class="settings-section" id="staff-incomes-wrap">
+    ${renderIncomeList(_incomes.filter(i => i.category === 'staff'), 'staff')}
+  </div>`;
+
+  // Dial input
+  document.getElementById('dial-input').addEventListener('input', function() {
+    const v = parseFloat(this.value)||0.005;
+    _config.master_dial = v;
+    document.getElementById('dial-preview').textContent = '1 GRP = ' + fmtRyo(v * aw);
+    document.querySelectorAll('.tier-preview').forEach((el, i) => {
+      el.textContent = fmtRyo((_config.tiers[i]?.grp||0) * v * aw);
+    });
+    markDirty();
+  });
+
+  // Tier GRP inputs
+  root.addEventListener('input', e => {
+    if (e.target.classList.contains('tier-grp')) {
+      const i   = parseInt(e.target.dataset.idx);
+      const val = parseInt(e.target.value)||1;
+      _config.tiers[i].grp = val;
+      root.querySelector(`.tier-preview[data-idx="${i}"]`).textContent = calcRyo(val);
+      markDirty();
+    }
+    if (e.target.classList.contains('income-grp')) {
+      const id  = e.target.dataset.id;
+      const val = parseInt(e.target.value)||1;
+      const inc = _incomes.find(i => i.id === id);
+      if (inc) { inc.grp = val; markDirty(); }
+    }
+    if (e.target.classList.contains('income-name')) {
+      const id = e.target.dataset.id;
+      const inc= _incomes.find(i => i.id === id);
+      if (inc) { inc.name = e.target.value; markDirty(); }
+    }
+  });
+
+  // Delete income
+  root.addEventListener('click', e => {
+    if (e.target.classList.contains('del-income')) {
+      const id = e.target.dataset.id;
+      const inc= _incomes.find(i => i.id === id);
+      if (inc && confirm('Remove "'+inc.name+'"?')) {
+        _incomes = _incomes.filter(i => i.id !== id);
+        markDirty();
+        document.getElementById('player-incomes-wrap').innerHTML = renderIncomeList(_incomes.filter(i=>i.category!=='staff'), 'player');
+        document.getElementById('staff-incomes-wrap').innerHTML  = renderIncomeList(_incomes.filter(i=>i.category==='staff'),  'staff');
+      }
+    }
+    // Add income
+    if (e.target.id === 'add-player-btn') addIncome('player');
+    if (e.target.id === 'add-staff-btn')  addIncome('staff');
+  });
+
+  // Save all
+  document.getElementById('save-all-btn').addEventListener('click', saveAll);
+  document.getElementById('discard-btn').addEventListener('click', async () => {
+    _data    = await forceRefresh();
+    _config  = JSON.parse(JSON.stringify(_data.config || { master_dial:0.005, tiers:getTiers(_data) }));
+    _incomes = JSON.parse(JSON.stringify(_data.income_types||[]));
+    _dirty   = false;
+    document.getElementById('save-bar').style.display = 'none';
+    renderPage();
+  });
+}
+
+function renderIncomeList(incomes, category) {
+  const addId = category === 'staff' ? 'add-staff-btn' : 'add-player-btn';
+  return `
+  <div style="display:grid;grid-template-columns:1fr 120px 80px;gap:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:0.5rem">
+    <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Activity</span>
+    <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);text-align:right">Graded RP</span>
+    <span></span>
+  </div>
+  ${incomes.map(inc => `
+    <div class="settings-row">
+      <input type="text" class="settings-input income-name" data-id="${inc.id}" value="${inc.name}" style="text-align:left">
+      <input type="number" class="settings-input income-grp" data-id="${inc.id}" value="${inc.grp}" min="1" step="1">
+      <button class="del-btn del-income" data-id="${inc.id}">✕</button>
+    </div>`).join('')}
+  <div class="add-row">
+    <input type="text" class="settings-input" id="${addId}-name" placeholder="New activity name" style="text-align:left">
+    <input type="number" class="settings-input" id="${addId}-grp" placeholder="GRP" min="1">
+    <button class="btn btn-ghost" id="${addId}" style="padding:0.4rem 0.75rem;font-size:0.65rem">+ Add</button>
+  </div>`;
+}
+
+function addIncome(category) {
+  const prefix = category === 'staff' ? 'add-staff-btn' : 'add-player-btn';
+  const name   = document.getElementById(prefix+'-name').value.trim();
+  const grp    = parseInt(document.getElementById(prefix+'-grp').value)||0;
+  if (!name || grp < 1) { alert('Enter a name and Graded RP value.'); return; }
+  _incomes.push({ id: 'inc_'+Date.now(), name, grp, category });
+  markDirty();
+  document.getElementById('player-incomes-wrap').innerHTML = renderIncomeList(_incomes.filter(i=>i.category!=='staff'),'player');
+  document.getElementById('staff-incomes-wrap').innerHTML  = renderIncomeList(_incomes.filter(i=>i.category==='staff'), 'staff');
+}
+
+async function saveAll() {
+  const btn = document.getElementById('save-all-btn');
+  btn.textContent = 'Saving...'; btn.disabled = true;
+  try {
+    await Promise.all([
+      adminSave('config',  _config),
+      adminSave('incomes', _incomes),
+    ]);
+    _data  = await forceRefresh();
+    _dirty = false;
+    document.getElementById('save-bar').style.display = 'none';
+    document.getElementById('save-status').textContent = '✅ Saved';
+    renderPage();
+  } catch(err) {
+    alert('Save failed: '+err.message);
+    btn.textContent = 'Save All Changes'; btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

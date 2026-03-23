@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Purchasing Power</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Analysis</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)"><em>Purchasing</em> Power</h1>
+  <p class="hero-sub">How many activities to afford each tier. Use this to balance shop prices.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Computing matrix...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, calcPurchasingPower, getTiers, fmtRyo } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, matrixClass, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('purchasing');
+attachGlobalHandlers(login, logout);
+initAuth(async () => { if (!requireAdmin()) return; await render(); });
+
+async function render() {
+  const root = document.getElementById('root');
+  try {
+    const data    = await fetchAPI();
+    const tiers   = getTiers(data);
+    const incomes = (data.income_types||[]).filter(i => i.category !== 'staff');
+    const sorted  = [...incomes].sort((a,b) => (a.grp||0)-(b.grp||0));
+
+    root.innerHTML = `
+    ${sectionHeader('Activity vs Tier Matrix')}
+    <div class="matrix-wrap fade-in" style="margin-bottom:2rem">
+      <table class="matrix-table">
+        <thead>
+          <tr>
+            <th style="text-align:left">Activity</th>
+            <th>GRP</th>
+            ${tiers.map(t=>`<th>${t.name}</th>`).join('')}
+          </tr>
+          <tr style="background:rgba(0,0,0,0.2)">
+            <th style="color:var(--ash);font-size:0.5rem">GRP cost →</th>
+            <th></th>
+            ${tiers.map(t=>`<th style="color:var(--seal-gold);font-size:0.6rem">${t.grp}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map(inc => `<tr>
+            <td>${inc.name}</td>
+            <td style="color:var(--ash-light);font-size:0.75rem">${inc.grp||0}</td>
+            ${tiers.map(t => {
+              const n = calcPurchasingPower(inc.grp||1, t.grp);
+              return `<td class="${matrixClass(n)}" data-tip="${n} × ${inc.name}">${n}</td>`;
+            }).join('')}
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:center;margin-bottom:2.5rem">
+      <span style="font-family:var(--ff-display);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Legend:</span>
+      <span class="m-green"  style="padding:0.2rem 0.6rem;border-radius:3px;font-size:0.75rem">1 — Trivial</span>
+      <span class="m-yellow" style="padding:0.2rem 0.6rem;border-radius:3px;font-size:0.75rem">2–5 — Easy</span>
+      <span class="m-orange" style="padding:0.2rem 0.6rem;border-radius:3px;font-size:0.75rem">6–20 — Moderate</span>
+      <span class="m-salmon" style="padding:0.2rem 0.6rem;border-radius:3px;font-size:0.75rem">21–100 — Long-term</span>
+      <span class="m-red"    style="padding:0.2rem 0.6rem;border-radius:3px;font-size:0.75rem">100+ — Prestige</span>
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Shop Item Effort Lookup')}
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden">
+      <table class="data-table">
+        <thead><tr>
+          <th>Item</th><th>Price</th><th>GRP Cost</th>
+          <th>S-Ranks needed</th><th>A-Ranks needed</th><th>B-Ranks needed</th>
+        </tr></thead>
+        <tbody>
+          ${(data.shop_items||[]).filter(i=>i.name).map(item => {
+            const grp = parseInt(item.graded_rp_effort)||0;
+            return `<tr>
+              <td><strong>${item.name}</strong></td>
+              <td class="ryo">${fmtRyo(item.price_ryo||0)}</td>
+              <td class="grp">${item.graded_rp_effort||'—'}</td>
+              <td style="color:var(--seal-gold)">${grp>0?Math.ceil(grp/60):'—'}</td>
+              <td style="color:var(--chakra)">${grp>0?Math.ceil(grp/40):'—'}</td>
+              <td style="color:var(--ash-light)">${grp>0?Math.ceil(grp/12):'—'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  } catch(err) { root.innerHTML = renderError(err.message); }
+}
+</script>
+</body>
+</html>

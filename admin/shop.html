@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Manage Shop</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    .shop-form {
+      background: var(--ink-mid);
+      border: 1px solid var(--border-dim);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 1rem; }
+    .form-field label {
+      display: block;
+      font-family: var(--ff-display);
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ash);
+      margin-bottom: 0.35rem;
+    }
+    .form-field input, .form-field select {
+      width: 100%;
+      background: var(--ink-light);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      color: var(--paper);
+      font-family: var(--ff-body);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-field input:focus, .form-field select:focus { border-color: var(--seal-gold); }
+    .form-field select option { background: var(--ink-mid); }
+    .pricing-mode-tabs {
+      display: flex; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .mode-tab {
+      padding: 0.4rem 0.9rem;
+      font-family: var(--ff-display);
+      font-size: 0.6rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-radius: 4px;
+      border: 1px solid var(--border-dim);
+      cursor: pointer;
+      background: transparent;
+      color: var(--ash-light);
+      transition: all 0.2s;
+    }
+    .mode-tab.active { background: var(--seal-fade); border-color: var(--seal-gold); color: var(--seal-gold); }
+    .price-preview {
+      background: var(--ink-light);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      font-family: var(--ff-display);
+      font-size: 1.1rem;
+      color: var(--seal-gold);
+      text-align: center;
+      min-height: 44px;
+    }
+    .item-row { display: grid; grid-template-columns: 1fr 120px 120px 100px 80px; gap: 0.75rem; align-items: center; padding: 0.75rem 1rem; border-bottom: 1px solid rgba(201,168,76,0.05); }
+    .item-row:last-child { border-bottom: none; }
+    .item-row:hover { background: rgba(201,168,76,0.02); }
+    .del-btn { background: transparent; border: 1px solid rgba(192,57,43,0.3); color: #e07060; border-radius: 4px; padding: 0.3rem 0.6rem; font-family: var(--ff-display); font-size: 0.6rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; }
+    .del-btn:hover { background: rgba(192,57,43,0.1); }
+    .edit-btn { background: transparent; border: 1px solid var(--border); color: var(--seal-gold); border-radius: 4px; padding: 0.3rem 0.6rem; font-family: var(--ff-display); font-size: 0.6rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; }
+    .edit-btn:hover { background: var(--seal-fade); }
+  </style>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Panel</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)">Manage <em>Shop</em></h1>
+  <p class="hero-sub">Add, edit, and remove shop items. Changes go live immediately.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading shop...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, forceRefresh, adminSave, calcDial, calcAW, fmtRyo, getTiers } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, tierBadge, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('mgshop');
+attachGlobalHandlers(login, logout);
+
+let _data  = null;
+let _items = [];
+let _editId = null;
+let _pricingMode = 'tier';
+
+initAuth(async () => {
+  if (!requireAdmin()) return;
+  _data  = await fetchAPI();
+  _items = (_data.shop_items || []).map((item, i) => ({ ...item, _id: item._id || 'item_' + i }));
+  renderPage();
+});
+
+function renderPage() {
+  const root  = document.getElementById('root');
+  const tiers = getTiers(_data);
+  const aw    = calcAW(_data);
+  const dial  = calcDial(_data);
+
+  root.innerHTML = `
+  <!-- ADD / EDIT FORM -->
+  <div class="shop-form" id="item-form">
+    <div style="font-family:var(--ff-display);font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--seal-gold);margin-bottom:1.25rem" id="form-title">
+      ➕ Add New Item
+    </div>
+
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-field" style="grid-column:span 2">
+        <label>Item Name</label>
+        <input type="text" id="f-name" placeholder="e.g. Chakra Pill">
+      </div>
+      <div class="form-field">
+        <label>Item ID (Tatsu bot)</label>
+        <input type="text" id="f-itemid" placeholder="e.g. 12345">
+      </div>
+    </div>
+
+    <!-- Pricing mode tabs -->
+    <div style="font-family:var(--ff-display);font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--ash);margin-bottom:0.5rem">
+      Pricing Mode
+    </div>
+    <div class="pricing-mode-tabs" id="mode-tabs">
+      <button class="mode-tab active" data-mode="tier">Tier</button>
+      <button class="mode-tab" data-mode="grp">Graded RP</button>
+      <button class="mode-tab" data-mode="ryo">Fixed Ryo</button>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:1rem" id="pricing-fields">
+      <!-- Tier mode -->
+      <div class="form-field" id="field-tier">
+        <label>Tier</label>
+        <select id="f-tier">
+          ${tiers.map(t => `<option value="${t.name}">${t.name} (${t.grp} GRP)</option>`).join('')}
+        </select>
+      </div>
+      <!-- GRP mode -->
+      <div class="form-field" id="field-grp" style="display:none">
+        <label>Graded RP Cost</label>
+        <input type="number" id="f-grp" placeholder="e.g. 35" min="1">
+      </div>
+      <!-- Ryo mode -->
+      <div class="form-field" id="field-ryo" style="display:none">
+        <label>Fixed Ryo Price</label>
+        <input type="number" id="f-ryo" placeholder="e.g. 5000" min="1">
+      </div>
+      <!-- Live preview -->
+      <div class="form-field">
+        <label>Price Preview</label>
+        <div class="price-preview" id="price-preview">—</div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+      <button class="btn btn-gold" id="save-btn">Save Item</button>
+      <button class="btn btn-ghost" id="cancel-btn" style="display:none">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ITEM LIST -->
+  ${sectionHeader('Current Shop Items (' + _items.length + ')')}
+  ${_items.length === 0
+    ? `<div style="text-align:center;padding:3rem;color:var(--ash);font-style:italic">No items yet. Add one above.</div>`
+    : `<div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden">
+        <div style="display:grid;grid-template-columns:1fr 120px 120px 100px 80px;gap:0.75rem;padding:0.6rem 1rem;background:var(--ink-light)">
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Item</span>
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Tier</span>
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Price</span>
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Effort</span>
+          <span></span>
+        </div>
+        ${_items.map(item => `
+          <div class="item-row" data-id="${item._id}">
+            <div>
+              <strong>${item.name}</strong>
+              ${item.item_id ? `<span style="font-size:0.7rem;color:var(--ash);margin-left:0.5rem">#${item.item_id}</span>` : ''}
+            </div>
+            <div>${tierBadge(item.tier||'Custom')}</div>
+            <div class="ryo">${fmtRyo(item.price_ryo||0)}</div>
+            <div class="grp">${item.graded_rp_effort||'—'}</div>
+            <div style="display:flex;gap:0.4rem">
+              <button class="edit-btn" data-id="${item._id}">Edit</button>
+              <button class="del-btn" data-id="${item._id}">✕</button>
+            </div>
+          </div>`).join('')}
+      </div>`
+  }`;
+
+  // Pricing mode tabs
+  document.getElementById('mode-tabs').addEventListener('click', e => {
+    const btn = e.target.closest('.mode-tab');
+    if (!btn) return;
+    _pricingMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('field-tier').style.display = _pricingMode === 'tier' ? '' : 'none';
+    document.getElementById('field-grp').style.display  = _pricingMode === 'grp'  ? '' : 'none';
+    document.getElementById('field-ryo').style.display  = _pricingMode === 'ryo'  ? '' : 'none';
+    updatePreview();
+  });
+
+  // Live price preview
+  function updatePreview() {
+    const tiers = getTiers(_data);
+    let preview = '—';
+    if (_pricingMode === 'tier') {
+      const tier = tiers.find(t => t.name === document.getElementById('f-tier').value);
+      if (tier && aw > 0) preview = fmtRyo(tier.grp * dial * aw);
+    } else if (_pricingMode === 'grp') {
+      const grp = parseFloat(document.getElementById('f-grp').value);
+      if (grp > 0 && aw > 0) preview = fmtRyo(grp * dial * aw);
+    } else if (_pricingMode === 'ryo') {
+      const ryo = parseFloat(document.getElementById('f-ryo').value);
+      if (ryo > 0) preview = fmtRyo(ryo);
+    }
+    document.getElementById('price-preview').textContent = preview;
+  }
+  document.getElementById('f-tier').addEventListener('change', updatePreview);
+  document.getElementById('f-grp').addEventListener('input', updatePreview);
+  document.getElementById('f-ryo').addEventListener('input', updatePreview);
+  updatePreview();
+
+  // Save
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const name   = document.getElementById('f-name').value.trim();
+    const itemId = document.getElementById('f-itemid').value.trim();
+    if (!name) { alert('Item name is required.'); return; }
+
+    const newItem = {
+      _id:          _editId || 'item_' + Date.now(),
+      name,
+      item_id:      itemId,
+      pricing_mode: _pricingMode,
+      tier:         _pricingMode === 'tier' ? document.getElementById('f-tier').value : null,
+      custom_grp:   _pricingMode === 'grp'  ? parseFloat(document.getElementById('f-grp').value)||0 : 0,
+      custom_ryo:   _pricingMode === 'ryo'  ? parseFloat(document.getElementById('f-ryo').value)||0 : 0,
+    };
+
+    if (_editId) {
+      _items = _items.map(i => i._id === _editId ? newItem : i);
+    } else {
+      _items.push(newItem);
+    }
+
+    const btn = document.getElementById('save-btn');
+    btn.textContent = 'Saving...'; btn.disabled = true;
+    try {
+      await adminSave('shop', _items);
+      _data  = await forceRefresh();
+      _items = (_data.shop_items||[]).map((item,i) => ({ ...item, _id: item._id||'item_'+i }));
+      _editId = null; _pricingMode = 'tier';
+      renderPage();
+    } catch(err) {
+      alert('Save failed: ' + err.message);
+      btn.textContent = 'Save Item'; btn.disabled = false;
+    }
+  });
+
+  // Cancel edit
+  document.getElementById('cancel-btn').addEventListener('click', () => {
+    _editId = null; _pricingMode = 'tier'; renderPage();
+  });
+
+  // Edit / Delete buttons
+  root.addEventListener('click', async e => {
+    const editBtn = e.target.closest('.edit-btn');
+    const delBtn  = e.target.closest('.del-btn');
+
+    if (editBtn) {
+      const id   = editBtn.dataset.id;
+      const item = _items.find(i => i._id === id);
+      if (!item) return;
+      _editId = id;
+      _pricingMode = item.pricing_mode || 'tier';
+      document.getElementById('f-name').value   = item.name || '';
+      document.getElementById('f-itemid').value = item.item_id || '';
+      document.getElementById('form-title').textContent = '✏️ Editing: ' + item.name;
+      document.getElementById('save-btn').textContent   = 'Update Item';
+      document.getElementById('cancel-btn').style.display = '';
+
+      document.querySelectorAll('.mode-tab').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === _pricingMode);
+      });
+      document.getElementById('field-tier').style.display = _pricingMode === 'tier' ? '' : 'none';
+      document.getElementById('field-grp').style.display  = _pricingMode === 'grp'  ? '' : 'none';
+      document.getElementById('field-ryo').style.display  = _pricingMode === 'ryo'  ? '' : 'none';
+      if (item.tier)       document.getElementById('f-tier').value = item.tier;
+      if (item.custom_grp) document.getElementById('f-grp').value  = item.custom_grp;
+      if (item.custom_ryo) document.getElementById('f-ryo').value  = item.custom_ryo;
+      updatePreview();
+      document.getElementById('item-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (delBtn) {
+      const id   = delBtn.dataset.id;
+      const item = _items.find(i => i._id === id);
+      if (!item || !confirm('Delete "' + item.name + '"?')) return;
+      _items = _items.filter(i => i._id !== id);
+      try {
+        await adminSave('shop', _items);
+        _data  = await forceRefresh();
+        _items = (_data.shop_items||[]).map((it,i) => ({ ...it, _id: it._id||'item_'+i }));
+        renderPage();
+      } catch(err) { alert('Delete failed: ' + err.message); }
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Gini Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Analysis</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)"><em>Gini</em> Tracker</h1>
+  <p class="hero-sub">Wealth inequality among top players.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Calculating...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, calcGini, calcGiniStatus, fmtNum } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, statCard, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('gini');
+attachGlobalHandlers(login, logout);
+initAuth(async () => { if (!requireAdmin()) return; await render(); });
+
+async function render() {
+  const root = document.getElementById('root');
+  try {
+    const data   = await fetchAPI();
+    const cv     = data.meta?.inequality_cv||0;
+    const gini   = calcGini(data);
+    const status = calcGiniStatus(gini);
+    const count  = data.meta?.player_count||10;
+    const mean   = data.meta?.mean_wealth||0;
+    const stddev = mean * cv;
+
+    root.innerHTML = `
+    ${sectionHeader('Current Gini Estimate')}
+    <div class="gini-meter-wrap fade-in" style="margin-bottom:2rem">
+      <div style="display:flex;align-items:baseline;gap:1rem;margin-bottom:0.5rem">
+        <div class="gini-score">${gini.toFixed(3)}</div>
+        <span class="card-status ${status.cls}">${status.label}</span>
+      </div>
+      <p style="color:var(--ash-light);font-size:0.875rem;font-style:italic;margin-bottom:1rem">
+        Based on top ${count} players. Healthy target: below 0.40.
+      </p>
+      <div class="gini-track">
+        <div class="gini-fill" id="gini-fill" style="width:0%"></div>
+      </div>
+      <div class="gini-labels">
+        <span>0.0 Equal</span><span>0.35 Moderate</span><span>0.5 High</span><span>1.0 Extreme</span>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-bottom:2.5rem">
+      ${statCard('CV (raw)',      cv.toFixed(3),              'StdDev ÷ Mean',        '', 'fade-in stagger-1')}
+      ${statCard('Mean Wealth',   fmtNum(Math.round(mean)),   'Avg of top players',   '', 'fade-in stagger-2')}
+      ${statCard('Std Deviation', fmtNum(Math.round(stddev)), 'Spread of wealth',     '', 'fade-in stagger-3')}
+    </div>
+
+    <div class="brush-divider"></div>
+    ${sectionHeader('Staff Recommendations')}
+    <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden">
+      <table class="data-table">
+        <thead><tr><th>Range</th><th>Status</th><th>Recommended Action</th></tr></thead>
+        <tbody>
+          ${[
+            ['0.00–0.20','status-stable',  '✅ Very Equal',        'Economy healthy. No action needed.'],
+            ['0.20–0.35','status-mild',    '🟡 Moderate',          'Monitor weekly. Consider limited exclusive items.'],
+            ['0.35–0.50','status-accel',   '🟠 High',              'Switch to Median in the History tab settings.'],
+            ['0.50+',    'status-inflate', '🔴 Extreme — Whale',   'Switch to Median immediately. Consider a wealth-drain event.'],
+          ].map(([range,cls,label,action]) => {
+            const active =
+              (range==='0.00–0.20'&&gini<0.20)||
+              (range==='0.20–0.35'&&gini>=0.20&&gini<0.35)||
+              (range==='0.35–0.50'&&gini>=0.35&&gini<0.50)||
+              (range==='0.50+'&&gini>=0.50);
+            return `<tr style="${active?'background:rgba(201,168,76,0.06)':''}">
+              <td style="font-family:var(--ff-display);font-size:0.8rem">${range}</td>
+              <td><span class="card-status ${cls}">${label}</span></td>
+              <td>${action}${active?'<span style="margin-left:0.5rem;color:var(--seal-gold);font-family:var(--ff-display);font-size:0.6rem">← CURRENT</span>':''}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+    setTimeout(() => {
+      const el = document.getElementById('gini-fill');
+      if (el) el.style.width = Math.min(gini*100,100)+'%';
+    }, 200);
+  } catch(err) { root.innerHTML = renderError(err.message); }
+}
+</script>
+</body>
+</html>
