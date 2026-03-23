@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Commands</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Staff Tool</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)"><em>Command</em> Generator</h1>
+  <p class="hero-sub">Copy Tatsu commands after each weekly economy update.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, forceRefresh, adminRefreshAW, fmtRyo } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('commands');
+attachGlobalHandlers(login, logout);
+initAuth(async () => { if (!requireAdmin()) return; await render(); });
+
+let _refreshedAt = null;
+
+async function render() {
+  const root  = document.getElementById('root');
+  const data  = await fetchAPI();
+  const items = (data.shop_items||[]).filter(i => i.name && i.item_id && i.item_id !== '[item_id]');
+  const noId  = (data.shop_items||[]).filter(i => i.name && (!i.item_id || i.item_id === '[item_id]'));
+
+  root.innerHTML = `
+  <div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.5rem">
+    <div style="font-size:0.85rem;color:var(--ash);font-style:italic">
+      ${_refreshedAt ? '⚡ Last refreshed: <strong style="color:var(--paper)">'+_refreshedAt+'</strong>' : 'Data from cache. Refresh to get latest values.'}
+    </div>
+    <button class="btn btn-ghost" id="refresh-btn">↺ Refresh from Sheet</button>
+  </div>
+
+  ${sectionHeader('Tatsu Commands')}
+  ${items.length === 0
+    ? `<div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;padding:2rem;text-align:center;color:var(--ash)">
+         No items with IDs configured. Add item IDs in Manage Shop.
+       </div>`
+    : `<div style="margin-bottom:1.5rem">
+         <button class="btn btn-gold" style="margin-bottom:0.75rem" id="copy-all-btn">Copy All Commands</button>
+         <div style="display:flex;flex-direction:column;gap:0.4rem">
+           ${items.map(item => {
+             const cmd = 't@shop edit price '+item.item_id+' '+Math.round(item.price_ryo||0);
+             return `<div class="cmd-box" onclick="copyCmd(this,'${cmd}')">
+               <span style="color:var(--ash-light);font-size:0.75rem;min-width:160px">${item.name}</span>
+               <span>${cmd}</span>
+               <span class="copy-hint">Copy</span>
+             </div>`;
+           }).join('')}
+         </div>
+       </div>`}
+
+  ${noId.length > 0 ? `
+  <div class="brush-divider"></div>
+  ${sectionHeader('Missing Item IDs')}
+  <p style="color:var(--ash);font-size:0.85rem;font-style:italic;margin-bottom:1rem">Add IDs in Manage Shop → Edit each item.</p>
+  <div style="background:var(--ink-mid);border:1px solid rgba(192,57,43,0.2);border-radius:8px;overflow:hidden">
+    <table class="data-table">
+      <thead><tr><th>Item</th><th>Price</th><th>Action</th></tr></thead>
+      <tbody>${noId.map(i=>`<tr>
+        <td>${i.name}</td>
+        <td class="ryo">${fmtRyo(i.price_ryo||0)}</td>
+        <td><a href="/admin/shop.html" style="color:var(--seal-gold);font-family:var(--ff-display);font-size:0.65rem">Add ID →</a></td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </div>` : ''}`;
+
+  document.getElementById('refresh-btn').addEventListener('click', async function() {
+    this.disabled = true; this.textContent = '↻ Refreshing...';
+    try {
+      const r = await adminRefreshAW();
+      _refreshedAt = new Date().toLocaleTimeString();
+      await forceRefresh();
+      await render();
+      alert('✅ Refreshed! Rows added: '+r.rows_added+' | Latest AW: '+r.latest_aw);
+    } catch(err) {
+      alert('Refresh failed: '+err.message);
+      this.disabled = false; this.textContent = '↺ Refresh from Sheet';
+    }
+  });
+
+  document.getElementById('copy-all-btn')?.addEventListener('click', () => {
+    const all = items.map(i => 't@shop edit price '+i.item_id+' '+Math.round(i.price_ryo||0)).join('\n');
+    navigator.clipboard.writeText(all).then(() => {
+      const b = document.getElementById('copy-all-btn');
+      b.textContent = '✅ All Copied!';
+      setTimeout(() => b.textContent = 'Copy All Commands', 2000);
+    });
+  });
+}
+
+window.copyCmd = (el, cmd) => {
+  navigator.clipboard.writeText(cmd).then(() => {
+    const h = el.querySelector('.copy-hint');
+    el.classList.add('copied');
+    if (h) h.textContent = 'Copied!';
+    setTimeout(() => { el.classList.remove('copied'); if (h) h.textContent = 'Copy'; }, 1800);
+  });
+};
+</script>
+</body>
+</html>
