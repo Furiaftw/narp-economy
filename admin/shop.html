@@ -138,10 +138,6 @@ function renderPage() {
         <label>Item Name</label>
         <input type="text" id="f-name" placeholder="e.g. Chakra Pill">
       </div>
-      <div class="form-field">
-        <label>Item ID (Tatsu bot)</label>
-        <input type="text" id="f-itemid" placeholder="e.g. 12345">
-      </div>
     </div>
 
     <!-- Tags -->
@@ -209,7 +205,6 @@ function renderPage() {
           <div class="item-row" data-id="${item._id}">
             <div>
               <strong>${item.name}</strong>
-              ${item.item_id ? `<span style="font-size:0.7rem;color:var(--ash);margin-left:0.5rem">#${item.item_id}</span>` : ''}
               ${(item.tags||[]).map(t => `<span class="tag-badge" style="background:${tagColor(t)}20;color:${tagColor(t)}">${t}</span>`).join('')}
             </div>
             <div>${tierBadge(item.tier||'Custom')}</div>
@@ -302,13 +297,11 @@ function renderPage() {
   // Save
   document.getElementById('save-btn').addEventListener('click', async () => {
     const name   = document.getElementById('f-name').value.trim();
-    const itemId = document.getElementById('f-itemid').value.trim();
     if (!name) { alert('Item name is required.'); return; }
 
     const newItem = {
       _id:          _editId || 'item_' + Date.now(),
       name,
-      item_id:      itemId,
       tags:         [..._currentTags],
       pricing_mode: _pricingMode,
       tier:         _pricingMode === 'tier' ? document.getElementById('f-tier').value : null,
@@ -354,7 +347,6 @@ function renderPage() {
       _pricingMode = item.pricing_mode || 'tier';
       _currentTags = [...(item.tags || [])];
       document.getElementById('f-name').value   = item.name || '';
-      document.getElementById('f-itemid').value = item.item_id || '';
       document.getElementById('form-title').textContent = '✏️ Editing: ' + item.name;
       document.getElementById('save-btn').textContent   = 'Update Item';
       document.getElementById('cancel-btn').style.display = '';

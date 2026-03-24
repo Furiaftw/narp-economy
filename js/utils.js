@@ -18,7 +18,6 @@ function renderNav(activePage) {
     { href: '/admin/dashboard.html',  label: 'Dashboard',  key: 'dashboard'  },
     { href: '/admin/shop.html',       label: 'Manage Shop', key: 'mgshop'    },
     { href: '/admin/economy.html',    label: 'Economy',    key: 'economy'    },
-    { href: '/admin/commands.html',   label: 'Commands',   key: 'commands'   },
     { href: '/admin/purchasing.html', label: 'Pwr Table',  key: 'purchasing' },
     { href: '/admin/auction.html',    label: 'Auctions',   key: 'auctions'   },
     { href: '/admin/inflation.html',  label: 'Inflation',  key: 'inflation'  },
