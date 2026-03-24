@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Price &amp; Income Advisor</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    /* ── Advisor-specific styles ── */
+    .advisor-panel {
+      background: var(--ink-mid);
+      border: 1px solid var(--border-dim);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .advisor-panel h3 {
+      font-family: var(--ff-display);
+      color: var(--seal-gold);
+      font-size: 1.1rem;
+      margin: 0 0 1rem;
+      letter-spacing: 0.04em;
+    }
+    .advisor-input-row {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+    .advisor-input-row label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+      color: var(--paper-dim);
+      font-family: var(--ff-body);
+    }
+    .advisor-input-row input {
+      background: var(--ink-light);
+      border: 1px solid var(--border-dim);
+      color: var(--paper);
+      font-family: var(--ff-body);
+      padding: 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      width: 160px;
+    }
+    .advisor-input-row input:focus {
+      outline: none;
+      border-color: var(--seal-gold);
+    }
+
+    /* Verdict badges */
+    .verdict { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; }
+    .verdict-green  { background: rgba(45,122,94,0.25); color: #6dcea8; border: 1px solid rgba(45,122,94,0.4); }
+    .verdict-yellow { background: rgba(201,168,76,0.2); color: var(--seal-gold); border: 1px solid rgba(201,168,76,0.35); }
+    .verdict-red    { background: rgba(192,57,43,0.2); color: #e87c73; border: 1px solid rgba(192,57,43,0.35); }
+
+    /* Bar chart */
+    .bar-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+    .bar-label { min-width: 140px; text-align: right; font-size: 0.8rem; color: var(--paper-dim); font-family: var(--ff-body); white-space: nowrap; }
+    .bar-track { flex: 1; height: 22px; background: var(--ink-light); border-radius: 3px; overflow: hidden; position: relative; }
+    .bar-fill { height: 100%; border-radius: 3px; transition: width 0.4s ease; display: flex; align-items: center; padding-left: 0.5rem; }
+    .bar-fill span { font-size: 0.7rem; color: var(--paper); white-space: nowrap; font-family: var(--ff-body); }
+    .bar-flag { font-size: 0.7rem; color: #e87c73; margin-left: 0.5rem; white-space: nowrap; font-family: var(--ff-body); }
+
+    /* Snapshot grid */
+    .snapshot-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .snapshot-item { background: var(--ink-light); border-radius: 6px; padding: 0.85rem 1rem; }
+    .snapshot-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ash); font-family: var(--ff-display); margin-bottom: 0.3rem; }
+    .snapshot-value { font-size: 1.1rem; color: var(--paper); font-family: var(--ff-body); font-weight: 600; }
+
+    /* Effort table */
+    .effort-table { width: 100%; border-collapse: collapse; font-family: var(--ff-body); }
+    .effort-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ash); border-bottom: 1px solid var(--border-dim); }
+    .effort-table td { padding: 0.5rem 0.75rem; font-size: 0.85rem; color: var(--paper-dim); border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .effort-table .ryo { color: var(--seal-gold); }
+
+    /* What-if comparison table */
+    .whatif-table { width: 100%; border-collapse: collapse; font-family: var(--ff-body); }
+    .whatif-table th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ash); border-bottom: 1px solid var(--border-dim); }
+    .whatif-table td { padding: 0.45rem 0.75rem; font-size: 0.85rem; color: var(--paper-dim); border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .delta-pos { color: #6dcea8; }
+    .delta-neg { color: #e87c73; }
+    .delta-zero { color: var(--ash); }
+  </style>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Analysis</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)">Price &amp; Income <em>Advisor</em></h1>
+  <p class="hero-sub">Read-only decision tool. "Given our economy, what is a reasonable price for this?"</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading advisor...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import {
+  fetchAPI, calcAW, calcDial, calcBaseReward, calcGini, calcGiniStatus,
+  calcEconomyStatus, calcPurchasingPower, getTiers,
+  fmtRyo, fmtGRP, fmtPct, fmtNum, fmtDate
+} from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, matrixClass, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('advisor');
+attachGlobalHandlers(login, logout);
+initAuth(async () => { if (!requireAdmin()) return; await render(); });
+
+/* ────── GLOBALS ────── */
+let _data, _tiers, _incomes, _aw, _dial, _history;
+
+/* ────── MAIN RENDER ────── */
+async function render() {
+  const root = document.getElementById('root');
+  try {
+    _data    = await fetchAPI();
+    _tiers   = getTiers(_data);
+    _incomes = (_data.income_types || []).slice().sort((a,b) => (a.grp||0) - (b.grp||0));
+    _aw      = calcAW(_data);
+    _dial    = calcDial(_data);
+    _history = _data.history || [];
+
+    root.innerHTML = `
+      ${sectionHeader('Panel 1 — Price Sanity Checker')}
+      <div class="advisor-panel" id="panel-sanity">
+        <h3>Price Sanity Checker</h3>
+        <p style="font-size:0.85rem;color:var(--ash-light);margin:0 0 1rem">Enter a proposed Graded RP cost and see how reasonable it is.</p>
+        <div class="advisor-input-row">
+          <label>Proposed GRP Cost
+            <input type="number" id="sanity-grp" min="1" step="1" placeholder="e.g. 60">
+          </label>
+          <button class="btn btn-gold" id="sanity-btn" style="height:fit-content">Analyze</button>
+        </div>
+        <div id="sanity-result"></div>
+      </div>
+
+      <div class="brush-divider"></div>
+      ${sectionHeader('Panel 2 — Income Benchmarking')}
+      <div class="advisor-panel" id="panel-income">
+        <h3>Income Benchmarking</h3>
+        <p style="font-size:0.85rem;color:var(--ash-light);margin:0 0 1rem">All income types sorted by GRP value. Flags gaps larger than 3x between adjacent activities.</p>
+        <div id="income-chart"></div>
+      </div>
+
+      <div class="brush-divider"></div>
+      ${sectionHeader('Panel 3 — Economy Snapshot')}
+      <div class="advisor-panel" id="panel-snapshot">
+        <h3>Economy Snapshot</h3>
+        <p style="font-size:0.85rem;color:var(--ash-light);margin:0 0 1rem">Key numbers at a glance for decision-making context.</p>
+        <div id="snapshot-grid"></div>
+      </div>
+
+      <div class="brush-divider"></div>
+      ${sectionHeader('Panel 4 — What-If Simulator')}
+      <div class="advisor-panel" id="panel-whatif">
+        <h3>What-If Simulator</h3>
+        <p style="font-size:0.85rem;color:var(--ash-light);margin:0 0 1rem">Test hypothetical dial and AW values. Useful for planning resets or dial changes.</p>
+        <div class="advisor-input-row">
+          <label>Hypothetical Master Dial
+            <input type="number" id="whatif-dial" min="0.001" max="0.1" step="0.001" placeholder="${_dial.toFixed(4)}">
+          </label>
+          <label>Hypothetical AW
+            <input type="number" id="whatif-aw" min="1" step="1" placeholder="${Math.round(_aw)}">
+          </label>
+          <button class="btn btn-gold" id="whatif-btn" style="height:fit-content">Simulate</button>
+        </div>
+        <div id="whatif-result"></div>
+      </div>
+    `;
+
+    renderIncomeChart();
+    renderSnapshot();
+
+    document.getElementById('sanity-btn').addEventListener('click', runSanityCheck);
+    document.getElementById('sanity-grp').addEventListener('keydown', e => { if (e.key === 'Enter') runSanityCheck(); });
+    document.getElementById('whatif-btn').addEventListener('click', runWhatIf);
+  } catch(err) { root.innerHTML = renderError(err.message); }
+}
+
+/* ────── PANEL 1: PRICE SANITY CHECKER ────── */
+function runSanityCheck() {
+  const grpInput = document.getElementById('sanity-grp');
+  const grp = parseFloat(grpInput.value);
+  const out = document.getElementById('sanity-result');
+  if (!grp || grp < 1) { out.innerHTML = '<p style="color:var(--ash)">Enter a GRP value of at least 1.</p>'; return; }
+
+  const ryo = Math.round(grp * _dial * _aw);
+
+  // Purchasing power: how many of each activity
+  const playerIncomes = _incomes.filter(i => i.category !== 'staff');
+  const efforts = playerIncomes.map(inc => ({
+    name: inc.name,
+    grp: inc.grp || 1,
+    count: Math.ceil(grp / (inc.grp || 1))
+  }));
+
+  // S-Rank verdict (grp 60 is S-Rank)
+  const sRankIncome = playerIncomes.find(i => i.id === 's_rank');
+  const sRankGRP = sRankIncome ? sRankIncome.grp : 60;
+  const sRankCount = Math.ceil(grp / sRankGRP);
+  let verdictCls, verdictText;
+  if (sRankCount <= 10) {
+    verdictCls = 'verdict-green';
+    verdictText = `${sRankCount} S-Rank missions — Affordable`;
+  } else if (sRankCount <= 30) {
+    verdictCls = 'verdict-yellow';
+    verdictText = `${sRankCount} S-Rank missions — Moderate grind`;
+  } else {
+    verdictCls = 'verdict-red';
+    verdictText = `${sRankCount} S-Rank missions — Heavy grind`;
+  }
+
+  // Closest tier
+  let closestTier = _tiers[0];
+  let closestDist = Math.abs(grp - _tiers[0].grp);
+  for (const t of _tiers) {
+    const d = Math.abs(grp - t.grp);
+    if (d < closestDist) { closestDist = d; closestTier = t; }
+  }
+
+  // Suggested tier: find the tier whose GRP is closest without being more than 2x away
+  let suggestedTier = null;
+  for (let i = 0; i < _tiers.length; i++) {
+    if (_tiers[i].grp <= grp) suggestedTier = _tiers[i];
+  }
+  if (!suggestedTier) suggestedTier = _tiers[0];
+  // If GRP is above the highest tier, suggest the highest
+  if (grp > _tiers[_tiers.length - 1].grp) suggestedTier = _tiers[_tiers.length - 1];
+
+  out.innerHTML = `
+    <div style="margin-bottom:1rem">
+      <span style="font-size:0.8rem;color:var(--ash)">At current economy:</span>
+      <strong style="color:var(--seal-gold);font-size:1.1rem;margin-left:0.5rem">${fmtGRP(grp)}</strong>
+      <span style="color:var(--ash);margin:0 0.3rem">=</span>
+      <strong style="color:var(--paper);font-size:1.1rem">${fmtRyo(ryo)}</strong>
+    </div>
+    <div style="margin-bottom:1rem">
+      <span class="verdict ${verdictCls}">${verdictText}</span>
+    </div>
+    <div style="margin-bottom:1rem;font-size:0.85rem;color:var(--paper-dim)">
+      Closest to the <strong style="color:var(--seal-gold)">${closestTier.name}</strong> tier at <strong>${fmtGRP(closestTier.grp)}</strong>
+      ${closestTier.grp !== grp ? ` (${grp > closestTier.grp ? '+' : ''}${grp - closestTier.grp} GRP difference)` : ' (exact match)'}
+    </div>
+    <div style="margin-bottom:1.25rem;font-size:0.85rem;color:var(--paper-dim)">
+      Suggested tier: <strong style="color:var(--seal-gold)">${suggestedTier.name}</strong> (${fmtGRP(suggestedTier.grp)})
+      ${suggestedTier.name !== closestTier.name ? ' — or consider creating a custom GRP price' : ''}
+    </div>
+    <div style="background:var(--ink-light);border-radius:6px;overflow:hidden">
+      <table class="effort-table">
+        <thead><tr><th>Activity</th><th>GRP / Activity</th><th>Activities Needed</th><th>Effort</th></tr></thead>
+        <tbody>
+          ${efforts.map(e => {
+            const cls = matrixClass(e.count);
+            return `<tr>
+              <td>${e.name}</td>
+              <td style="color:var(--ash-light)">${e.grp}</td>
+              <td><span class="${cls}" style="padding:0.15rem 0.5rem;border-radius:3px">${e.count}</span></td>
+              <td style="color:var(--ash);font-size:0.75rem">${e.count <= 1 ? 'Trivial' : e.count <= 5 ? 'Easy' : e.count <= 20 ? 'Moderate' : e.count <= 100 ? 'Long-term' : 'Prestige'}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* ────── PANEL 2: INCOME BENCHMARKING ────── */
+function renderIncomeChart() {
+  const container = document.getElementById('income-chart');
+  const maxGRP = Math.max(..._incomes.map(i => i.grp || 0), 1);
+
+  let html = '';
+  for (let i = 0; i < _incomes.length; i++) {
+    const inc = _incomes[i];
+    const grp = inc.grp || 0;
+    const ryo = Math.round(grp * _dial * _aw);
+    const pct = Math.max((grp / maxGRP) * 100, 2);
+    const color = inc.category === 'staff' ? 'var(--chakra)' : 'var(--seal-gold)';
+
+    // Check gap with previous
+    let flag = '';
+    if (i > 0) {
+      const prevGRP = _incomes[i - 1].grp || 1;
+      const ratio = grp / prevGRP;
+      if (ratio > 3) {
+        flag = `<span class="bar-flag">&#9888; ${ratio.toFixed(1)}x gap from ${_incomes[i-1].name} — consider intermediate activity</span>`;
+      }
+    }
+
+    html += `
+      <div class="bar-row">
+        <div class="bar-label">${inc.name}<br><span style="font-size:0.65rem;color:var(--ash)">${grp} GRP · ${fmtRyo(ryo)}</span></div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${pct}%;background:${color}"><span>${grp} GRP</span></div>
+        </div>
+        ${flag}
+      </div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+/* ────── PANEL 3: ECONOMY SNAPSHOT ────── */
+function renderSnapshot() {
+  const container = document.getElementById('snapshot-grid');
+  const base = calcBaseReward(_data);
+  const gini = calcGini(_data);
+  const giniSt = calcGiniStatus(gini);
+  const pctChange = _data.meta?.weekly_change || 0;
+  const econSt = calcEconomyStatus(pctChange);
+
+  // Standard tier (typically "Standard" at 16 GRP)
+  const stdTier = _tiers.find(t => t.name === 'Standard') || _tiers[2] || _tiers[0];
+  const stdRyo = Math.round(stdTier.grp * _dial * _aw);
+
+  // Mythical tier
+  const mythTier = _tiers.find(t => t.name === 'Mythical') || _tiers[_tiers.length - 2] || _tiers[_tiers.length - 1];
+  const mythRyo = Math.round(mythTier.grp * _dial * _aw);
+
+  // History stats
+  const weeksOfHistory = _history.length;
+  let avgGrowth = '—';
+  if (_history.length >= 2) {
+    const changes = _history.filter(h => h.pct_change != null).map(h => h.pct_change);
+    if (changes.length > 0) {
+      const avg = changes.reduce((s, v) => s + v, 0) / changes.length;
+      avgGrowth = fmtPct(avg);
+    }
+  }
+
+  container.innerHTML = `
+    <div class="snapshot-grid">
+      <div class="snapshot-item">
+        <div class="snapshot-label">Current AW</div>
+        <div class="snapshot-value">${fmtNum(Math.round(_aw))}</div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">1 GRP earns</div>
+        <div class="snapshot-value">${fmtRyo(base)}</div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">${stdTier.name} Tier Price</div>
+        <div class="snapshot-value">${fmtRyo(stdRyo)}</div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">${mythTier.name} Tier Price</div>
+        <div class="snapshot-value">${fmtRyo(mythRyo)}</div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">Current Gini</div>
+        <div class="snapshot-value">${gini.toFixed(3)} <span style="font-size:0.7rem;color:var(--ash)">${giniSt.label}</span></div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">Weekly Change</div>
+        <div class="snapshot-value">${fmtPct(pctChange)} <span style="font-size:0.7rem;color:var(--ash)">${econSt.label}</span></div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">Weeks of History</div>
+        <div class="snapshot-value">${weeksOfHistory}</div>
+      </div>
+      <div class="snapshot-item">
+        <div class="snapshot-label">Avg AW Growth / Week</div>
+        <div class="snapshot-value">${avgGrowth}</div>
+      </div>
+    </div>
+  `;
+}
+
+/* ────── PANEL 4: WHAT-IF SIMULATOR ────── */
+function runWhatIf() {
+  const dialInput = document.getElementById('whatif-dial');
+  const awInput   = document.getElementById('whatif-aw');
+  const out       = document.getElementById('whatif-result');
+
+  const hypDial = parseFloat(dialInput.value) || _dial;
+  const hypAW   = parseFloat(awInput.value) || _aw;
+
+  if (hypDial < 0.001 || hypDial > 0.1) {
+    out.innerHTML = '<p style="color:var(--ash)">Dial must be between 0.001 and 0.1.</p>';
+    return;
+  }
+  if (hypAW < 1) {
+    out.innerHTML = '<p style="color:var(--ash)">AW must be at least 1.</p>';
+    return;
+  }
+
+  const curBase = _dial * _aw;
+  const hypBase = hypDial * hypAW;
+
+  function delta(current, hypothetical) {
+    if (current === 0) return { pct: 0, cls: 'delta-zero', label: '—' };
+    const d = ((hypothetical - current) / current) * 100;
+    if (Math.abs(d) < 0.1) return { pct: d, cls: 'delta-zero', label: '—' };
+    return {
+      pct: d,
+      cls: d > 0 ? 'delta-pos' : 'delta-neg',
+      label: (d > 0 ? '+' : '') + d.toFixed(1) + '%'
+    };
+  }
+
+  // Tier prices comparison
+  let tierRows = _tiers.map(t => {
+    const curPrice = Math.round(t.grp * _dial * _aw);
+    const hypPrice = Math.round(t.grp * hypDial * hypAW);
+    const d = delta(curPrice, hypPrice);
+    return `<tr>
+      <td><strong>${t.name}</strong></td>
+      <td style="color:var(--ash-light)">${t.grp}</td>
+      <td class="ryo">${fmtRyo(curPrice)}</td>
+      <td class="ryo">${fmtRyo(hypPrice)}</td>
+      <td class="${d.cls}">${d.label}</td>
+    </tr>`;
+  }).join('');
+
+  // Income rewards comparison
+  let incomeRows = _incomes.map(inc => {
+    const grp = inc.grp || 0;
+    const curReward = Math.round(grp * _dial * _aw);
+    const hypReward = Math.round(grp * hypDial * hypAW);
+    const d = delta(curReward, hypReward);
+    return `<tr>
+      <td>${inc.name} <span style="font-size:0.7rem;color:var(--ash)">${inc.category === 'staff' ? '(staff)' : ''}</span></td>
+      <td style="color:var(--ash-light)">${grp}</td>
+      <td class="ryo">${fmtRyo(curReward)}</td>
+      <td class="ryo">${fmtRyo(hypReward)}</td>
+      <td class="${d.cls}">${d.label}</td>
+    </tr>`;
+  }).join('');
+
+  const baseDelta = delta(curBase, hypBase);
+
+  out.innerHTML = `
+    <div style="margin-bottom:1.25rem;display:flex;gap:2rem;flex-wrap:wrap">
+      <div style="font-size:0.85rem;color:var(--paper-dim)">
+        Simulating: <strong style="color:var(--seal-gold)">Dial ${hypDial.toFixed(4)}</strong> &times; <strong style="color:var(--seal-gold)">AW ${fmtNum(Math.round(hypAW))}</strong>
+      </div>
+      <div style="font-size:0.85rem;color:var(--paper-dim)">
+        Base reward: ${fmtRyo(curBase)} &rarr; ${fmtRyo(hypBase)}
+        <span class="${baseDelta.cls}" style="margin-left:0.5rem">${baseDelta.label}</span>
+      </div>
+    </div>
+
+    ${sectionHeader('Tier Prices')}
+    <div style="background:var(--ink-light);border-radius:6px;overflow:hidden;margin-bottom:1.5rem">
+      <table class="whatif-table">
+        <thead><tr><th>Tier</th><th>GRP</th><th>Current</th><th>Hypothetical</th><th>Delta</th></tr></thead>
+        <tbody>${tierRows}</tbody>
+      </table>
+    </div>
+
+    ${sectionHeader('Income Rewards')}
+    <div style="background:var(--ink-light);border-radius:6px;overflow:hidden">
+      <table class="whatif-table">
+        <thead><tr><th>Activity</th><th>GRP</th><th>Current</th><th>Hypothetical</th><th>Delta</th></tr></thead>
+        <tbody>${incomeRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+</script>
+</body>
+</html>

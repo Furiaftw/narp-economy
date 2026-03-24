@@ -23,6 +23,7 @@ function renderNav(activePage) {
     { href: '/admin/auction.html',    label: 'Auctions',   key: 'auctions'   },
     { href: '/admin/inflation.html',  label: 'Inflation',  key: 'inflation'  },
     { href: '/admin/gini.html',       label: 'Gini',       key: 'gini'       },
+    { href: '/admin/advisor.html',   label: 'Advisor',    key: 'advisor'    },
   ];
 
   return `
