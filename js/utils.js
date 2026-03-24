@@ -34,11 +34,9 @@ function renderNav(activePage) {
       ${publicPages.map(p =>
         `<li><a href="${p.href}" class="${p.key===activePage?'active':''}">${p.label}</a></li>`
       ).join('')}
-      <span id="admin-nav-mobile" class="admin-nav-mobile" style="display:none;contents">
-        ${adminPages.map(p =>
-          `<li><a href="${p.href}" class="admin-link ${p.key===activePage?'active':''}">${p.label}</a></li>`
+      ${adminPages.map(p =>
+          `<li class="admin-nav-mobile" style="display:none"><a href="${p.href}" class="admin-link ${p.key===activePage?'active':''}">${p.label}</a></li>`
         ).join('')}
-      </span>
     </ul>
     <div class="nav-auth" id="nav-auth">
       <span class="nav-user" id="nav-user"></span>

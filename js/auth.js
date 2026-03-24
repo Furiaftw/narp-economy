@@ -50,14 +50,14 @@ function updateNavAuth() {
   const userEl    = document.getElementById('nav-user');
   const loginBtn  = document.getElementById('btn-login');
   const logoutBtn = document.getElementById('btn-logout');
-  const adminNavMobile = document.getElementById('admin-nav-mobile');
+  const adminNavMobileItems = document.querySelectorAll('.admin-nav-mobile');
   const adminSidebar   = document.getElementById('admin-sidebar');
   const adminBanner    = document.getElementById('admin-banner');
 
   if (userEl)    userEl.textContent       = _user ? (_user.email||'').split('@')[0] : '';
   if (loginBtn)  loginBtn.style.display   = isLoggedIn() ? 'none' : 'inline-flex';
   if (logoutBtn) logoutBtn.style.display  = isLoggedIn() ? 'inline-flex' : 'none';
-  if (adminNavMobile) adminNavMobile.style.display = isAdmin() ? 'contents' : 'none';
+  adminNavMobileItems.forEach(el => el.style.display = isAdmin() ? '' : 'none');
   if (adminSidebar)   adminSidebar.style.display   = isAdmin() ? 'flex' : 'none';
   if (adminBanner) adminBanner.style.display = isAdmin() ? 'flex' : 'none';
 
