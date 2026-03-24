@@ -50,14 +50,34 @@ function updateNavAuth() {
   const userEl    = document.getElementById('nav-user');
   const loginBtn  = document.getElementById('btn-login');
   const logoutBtn = document.getElementById('btn-logout');
-  const adminNav  = document.getElementById('admin-nav');
-  const adminBanner = document.getElementById('admin-banner');
+  const adminNavMobile = document.getElementById('admin-nav-mobile');
+  const adminSidebar   = document.getElementById('admin-sidebar');
+  const adminBanner    = document.getElementById('admin-banner');
 
   if (userEl)    userEl.textContent       = _user ? (_user.email||'').split('@')[0] : '';
   if (loginBtn)  loginBtn.style.display   = isLoggedIn() ? 'none' : 'inline-flex';
   if (logoutBtn) logoutBtn.style.display  = isLoggedIn() ? 'inline-flex' : 'none';
-  if (adminNav)  adminNav.style.display   = isAdmin() ? 'contents' : 'none';
+  if (adminNavMobile) adminNavMobile.style.display = isAdmin() ? 'contents' : 'none';
+  if (adminSidebar)   adminSidebar.style.display   = isAdmin() ? 'flex' : 'none';
   if (adminBanner) adminBanner.style.display = isAdmin() ? 'flex' : 'none';
+
+  // Toggle body class for sidebar content offset (desktop only)
+  if (isAdmin()) {
+    document.body.classList.add('has-admin-sidebar');
+  } else {
+    document.body.classList.remove('has-admin-sidebar');
+  }
+
+  // Update scroll hint visibility for admin sidebar
+  if (adminSidebar && isAdmin()) {
+    requestAnimationFrame(() => {
+      const nav = document.getElementById('admin-sidebar-nav');
+      const hint = document.getElementById('admin-scroll-hint');
+      if (nav && hint) {
+        hint.style.display = nav.scrollHeight > nav.clientHeight ? 'flex' : 'none';
+      }
+    });
+  }
 }
 
 export { initAuth, isLoggedIn, isAdmin, getCurrentUser, login, logout, requireAdmin, updateNavAuth };

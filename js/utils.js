@@ -34,7 +34,7 @@ function renderNav(activePage) {
       ${publicPages.map(p =>
         `<li><a href="${p.href}" class="${p.key===activePage?'active':''}">${p.label}</a></li>`
       ).join('')}
-      <span id="admin-nav" style="display:none;contents">
+      <span id="admin-nav-mobile" class="admin-nav-mobile" style="display:none;contents">
         ${adminPages.map(p =>
           `<li><a href="${p.href}" class="admin-link ${p.key===activePage?'active':''}">${p.label}</a></li>`
         ).join('')}
@@ -49,7 +49,18 @@ function renderNav(activePage) {
 </nav>
 <div class="admin-banner" id="admin-banner" style="display:none">
   🔒 Admin Panel — Restricted Access
-</div>`;
+</div>
+<aside class="admin-sidebar" id="admin-sidebar" style="display:none">
+  <div class="admin-sidebar-header">Admin</div>
+  <nav class="admin-sidebar-nav" id="admin-sidebar-nav">
+    ${adminPages.map(p =>
+      `<a href="${p.href}" class="admin-sidebar-link ${p.key===activePage?'active':''}">${p.label}</a>`
+    ).join('')}
+  </nav>
+  <div class="admin-sidebar-scroll-hint" id="admin-scroll-hint">
+    <span class="scroll-arrow">&#x25BC;</span> Scroll for more
+  </div>
+</aside>`;
 }
 
 // ── SHARED COMPONENTS ─────────────────────────────────
