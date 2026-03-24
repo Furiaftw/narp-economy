@@ -711,6 +711,100 @@ canvas { display: block; }
   background: var(--seal-fade);
 }
 
+/* ── TAG BADGES (PUBLIC) ────────────────────────────── */
+.tag-badge {
+  display: inline-block;
+  padding: 0.1rem 0.45rem;
+  border-radius: 2px;
+  font-family: var(--ff-display);
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+
+/* ── TAG FILTER BUTTONS ─────────────────────────────── */
+.tag-filter-btn {
+  padding: 0.4rem 0.75rem;
+  background: var(--ink-mid);
+  border: 1px solid var(--border-dim);
+  border-radius: var(--radius);
+  color: var(--ash-light);
+  font-family: var(--ff-display);
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tag-filter-btn:hover, .tag-filter-btn.active {
+  color: #fff;
+}
+
+/* ── STAFF ONLY ITEMS ───────────────────────────────── */
+.staff-only-row td { opacity: 0.5; }
+.staff-only-row:hover td { opacity: 0.7; }
+.staff-lock {
+  font-size: 0.75rem;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+/* ── TAG CHIPS (ADMIN) ──────────────────────────────── */
+.tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  font-family: var(--ff-display);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #fff;
+}
+.tag-chip-remove {
+  cursor: pointer;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  line-height: 1;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+}
+.tag-chip-remove:hover { opacity: 1; }
+
+.tag-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+}
+.tag-suggestion {
+  padding: 0.15rem 0.5rem;
+  border-radius: 3px;
+  font-family: var(--ff-display);
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+  border: 1px dashed;
+  background: transparent;
+  color: inherit;
+}
+.tag-suggestion:hover { opacity: 1; }
+
 /* ── FOOTER ──────────────────────────────────────────── */
 .footer {
   border-top: 1px solid var(--border-dim);
