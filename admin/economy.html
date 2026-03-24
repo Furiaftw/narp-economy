@@ -24,6 +24,187 @@
     .save-bar { position: sticky; bottom: 0; background: var(--ink-deep); border-top: 1px solid var(--border-dim); padding: 1rem 2rem; display: flex; gap: 1rem; align-items: center; z-index: 10; }
     .unsaved-dot { width: 8px; height: 8px; background: var(--seal-red); border-radius: 50%; display: none; }
     .unsaved-dot.show { display: inline-block; }
+
+    /* Desktop grid layouts */
+    .master-dial-grid { display: grid; grid-template-columns: 1fr 180px 180px; gap: 1rem; align-items: center; }
+    .safety-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.5rem; }
+    .tier-header { display: grid; grid-template-columns: 1fr 140px 140px; gap: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-dim); margin-bottom: 0.5rem; }
+    .income-header { display: grid; grid-template-columns: 1fr 120px 80px; gap: 0.75rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-dim); margin-bottom: 0.5rem; }
+    .col-label { font-family: var(--ff-display); font-size: 0.55rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ash); }
+    .col-label.right { text-align: right; }
+    .m-label { display: none; font-family: var(--ff-display); font-size: 0.5rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ash); margin-bottom: 0.2rem; }
+
+    /* ── ECONOMY SLIDERS ─────────────────────────── */
+    .slider-wrap { width: 100%; }
+    .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; gap: 0.5rem; flex-wrap: wrap; }
+    .slider-value { font-family: var(--ff-display); font-size: 1.3rem; font-weight: 700; color: var(--seal-gold); }
+    .slider-zone-label {
+      font-family: var(--ff-display); font-size: 0.6rem; letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 0.2rem 0.6rem; border-radius: 2rem; white-space: nowrap;
+    }
+    .zone-blue   { background: rgba(74,158,255,0.15);  color: #7ab8f5; border: 1px solid rgba(74,158,255,0.3); }
+    .zone-green  { background: rgba(45,122,94,0.2);    color: #5bbf94; border: 1px solid rgba(45,122,94,0.3); }
+    .zone-yellow { background: rgba(201,168,76,0.15);  color: #d4b060; border: 1px solid rgba(201,168,76,0.3); }
+    .zone-orange { background: rgba(192,100,43,0.2);   color: #e09060; border: 1px solid rgba(192,100,43,0.3); }
+    .zone-red    { background: rgba(192,57,43,0.2);    color: #e07060; border: 1px solid rgba(192,57,43,0.3); }
+    .zone-gray   { background: rgba(107,100,87,0.2);   color: #9a9080; border: 1px solid rgba(107,100,87,0.3); }
+
+    .economy-slider {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 8px; border-radius: 4px;
+      outline: none; cursor: pointer; background: var(--ink-light);
+    }
+    .economy-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+      background: var(--paper); border: 2px solid var(--seal-gold); cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4); transition: box-shadow 0.2s;
+    }
+    .economy-slider::-webkit-slider-thumb:hover { box-shadow: 0 2px 12px rgba(201,168,76,0.5); }
+    .economy-slider::-moz-range-thumb {
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--paper); border: 2px solid var(--seal-gold); cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    .economy-slider::-moz-range-track { height: 8px; border-radius: 4px; background: transparent; }
+
+    .slider-desc {
+      font-size: 0.75rem; color: var(--ash); font-style: italic;
+      margin-top: 0.5rem; line-height: 1.4;
+    }
+    .slider-preview {
+      font-family: var(--ff-display); font-size: 0.7rem; color: var(--seal-gold);
+      margin-top: 0.4rem; padding: 0.35rem 0.6rem;
+      background: rgba(201,168,76,0.06); border-radius: var(--radius);
+      border-left: 2px solid var(--seal-gold);
+    }
+
+    .method-toggle-wrap {
+      display: flex; gap: 0; border-radius: var(--radius);
+      overflow: hidden; border: 1px solid var(--border-dim);
+    }
+    .method-toggle-btn {
+      flex: 1; padding: 0.5rem 0.75rem;
+      font-family: var(--ff-display); font-size: 0.65rem;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      cursor: pointer; border: none;
+      background: var(--ink-light); color: var(--ash);
+      transition: all 0.2s; text-align: center;
+    }
+    .method-toggle-btn:hover { color: var(--paper-dim); }
+    .method-toggle-btn.active { background: var(--seal-gold); color: var(--ink-deep); font-weight: 700; }
+    .method-info {
+      font-size: 0.7rem; margin-top: 0.4rem; padding: 0.35rem 0.6rem;
+      border-radius: var(--radius); line-height: 1.4;
+    }
+    .method-info-blue { color: #7ab8f5; background: rgba(74,158,255,0.08); border-left: 2px solid rgba(74,158,255,0.4); }
+    .method-info-yellow { color: #d4b060; background: rgba(201,168,76,0.08); border-left: 2px solid rgba(201,168,76,0.4); }
+
+    /* ── MOBILE ECONOMY REDESIGN ─────────────────── */
+    @media (max-width: 768px) {
+      .m-label { display: block; }
+      .settings-section { padding: 1rem; }
+
+      /* Master Dial — stack vertically */
+      .master-dial-grid {
+        grid-template-columns: 1fr;
+      }
+      .master-dial-grid .settings-input {
+        width: 100% !important;
+        max-width: none !important;
+      }
+      .master-dial-grid .preview-val {
+        text-align: center;
+        font-size: 1rem;
+        padding: 0.25rem 0;
+        border-top: 1px solid var(--border-dim);
+      }
+
+      /* Safety Settings — single column */
+      .safety-grid {
+        grid-template-columns: 1fr;
+        gap: 1.25rem;
+      }
+      .safety-grid .settings-input,
+      .safety-grid select.settings-input {
+        width: 100% !important;
+      }
+
+      /* Hide desktop column headers */
+      .tier-header, .income-header { display: none; }
+
+      /* Settings rows become cards */
+      .settings-row {
+        grid-template-columns: 1fr 1fr;
+        background: rgba(42, 38, 30, 0.5);
+        border-radius: var(--radius);
+        padding: 0.75rem;
+        margin-bottom: 0.5rem;
+        border-bottom: none;
+      }
+      .settings-row:last-child { border-bottom: none; margin-bottom: 0; }
+      .settings-row > :first-child {
+        grid-column: 1 / -1;
+      }
+      .settings-row label {
+        color: var(--seal-gold);
+        font-size: 0.9rem;
+        font-family: var(--ff-display);
+        padding-bottom: 0.25rem;
+        border-bottom: 1px solid rgba(201,168,76,0.1);
+        margin-bottom: 0.15rem;
+      }
+      .settings-row .del-btn {
+        justify-self: end;
+        align-self: end;
+        padding: 0.35rem 0.75rem;
+      }
+      .settings-row .settings-input { text-align: center; }
+      .settings-row .income-name { text-align: left !important; }
+
+      /* Add row — stack name, GRP + button side by side */
+      .add-row {
+        grid-template-columns: 1fr auto;
+      }
+      .add-row > :first-child {
+        grid-column: 1 / -1;
+      }
+      .add-row .btn { align-self: end; }
+
+      /* Save bar — compact */
+      .save-bar {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .save-bar .btn { font-size: 0.6rem; padding: 0.5rem 0.9rem; }
+
+      /* Sliders on mobile */
+      .slider-value { font-size: 1.1rem; }
+      .slider-zone-label { font-size: 0.55rem; padding: 0.15rem 0.5rem; }
+      .slider-preview { font-size: 0.65rem; }
+      .slider-desc { font-size: 0.7rem; }
+      .economy-slider { height: 10px; }
+      .economy-slider::-webkit-slider-thumb { width: 28px; height: 28px; }
+      .economy-slider::-moz-range-thumb { width: 28px; height: 28px; }
+      .method-toggle-btn { padding: 0.6rem; font-size: 0.6rem; }
+      .method-info { font-size: 0.65rem; }
+    }
+
+    @media (max-width: 480px) {
+      .settings-section { padding: 0.75rem; }
+      .master-dial-grid .preview-val { font-size: 0.9rem; }
+      .settings-row { padding: 0.6rem; gap: 0.35rem 0.5rem; }
+      .settings-row label { font-size: 0.8rem; }
+      .settings-row .settings-input { font-size: 0.8rem; padding: 0.35rem 0.5rem; }
+      .save-bar .btn { font-size: 0.55rem; padding: 0.4rem 0.75rem; }
+
+      /* Sliders on small screens */
+      .slider-value { font-size: 0.95rem; }
+      .slider-preview { font-size: 0.6rem; padding: 0.3rem 0.5rem; }
+      .slider-desc { font-size: 0.65rem; }
+      .economy-slider::-webkit-slider-thumb { width: 26px; height: 26px; }
+      .economy-slider::-moz-range-thumb { width: 26px; height: 26px; }
+    }
   </style>
 </head>
 <body>
@@ -44,7 +225,7 @@
 </div>
 <footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
 <script type="module">
-import { fetchAPI, forceRefresh, adminSave, calcDial, calcAW, fmtRyo, getTiers } from '/js/api.js';
+import { fetchAPI, forceRefresh, adminSave, calcDial, calcAW, calcGini, fmtRyo, getTiers } from '/js/api.js';
 import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
 import { renderNav, renderError, sectionHeader, attachGlobalHandlers } from '/js/utils.js';
 
@@ -74,6 +255,110 @@ function calcRyo(grp) {
   return aw > 0 ? fmtRyo(grp * _config.master_dial * aw) : '—';
 }
 
+/* ── Slider zone helpers ───────────────────────── */
+function getDialZone(v) {
+  if (v < 0.003) return { cls: 'zone-blue', label: 'Very Slow Economy', desc: 'Rewards feel tiny, progression crawls' };
+  if (v < 0.005) return { cls: 'zone-blue', label: 'Slowed Down', desc: 'Below standard baseline' };
+  if (v <= 0.005) return { cls: 'zone-green', label: 'Standard Baseline', desc: 'Recommended default' };
+  if (v <= 0.010) return { cls: 'zone-yellow', label: 'Accelerated', desc: 'Prices and rewards growing faster than normal' };
+  return { cls: 'zone-red', label: 'High Stimulus', desc: 'Economy is heating up, monitor inflation closely' };
+}
+function getAlphaZone(v) {
+  if (v < 0.3) return { cls: 'zone-blue', label: 'Very Stable', desc: 'AW responds slowly to changes, good for volatile servers' };
+  if (v <= 0.5) return { cls: 'zone-green', label: 'Balanced', desc: 'Standard responsiveness' };
+  if (v <= 0.7) return { cls: 'zone-yellow', label: 'Responsive', desc: 'AW tracks weekly changes more closely' };
+  return { cls: 'zone-orange', label: 'Highly Reactive', desc: 'At 1.0, smoothing is disabled entirely' };
+}
+function getFloorZone(v) {
+  if (v < 100) return { cls: 'zone-gray', label: 'No Floor', desc: 'Economy can anchor near zero' };
+  if (v <= 300) return { cls: 'zone-green', label: 'Standard Range', desc: 'Recommended for established servers' };
+  if (v <= 600) return { cls: 'zone-yellow', label: 'High Floor', desc: 'New player rewards feel strong even early on' };
+  return { cls: 'zone-orange', label: 'Very High Floor', desc: 'May make the economy feel detached from reality' };
+}
+function getZoneColor(cls) {
+  const map = { 'zone-blue':'#4a9eff','zone-green':'#5bbf94','zone-yellow':'#d4b060','zone-orange':'#e09060','zone-red':'#e07060','zone-gray':'#6b6457' };
+  return map[cls] || '#6b6457';
+}
+function updateSliderTrack(slider, color) {
+  const min = parseFloat(slider.min), max = parseFloat(slider.max), val = parseFloat(slider.value);
+  const pct = ((val - min) / (max - min)) * 100;
+  slider.style.background = 'linear-gradient(to right, ' + color + ' 0%, ' + color + ' ' + pct + '%, #2a261e ' + pct + '%, #2a261e 100%)';
+}
+function updateDialSlider() {
+  const slider = document.getElementById('dial-slider');
+  if (!slider) return;
+  const v = parseFloat(slider.value);
+  _config.master_dial = v;
+  const zone = getDialZone(v);
+  const aw = calcAW(_data);
+  document.getElementById('dial-value').textContent = v.toFixed(4);
+  const zoneEl = document.getElementById('dial-zone');
+  zoneEl.textContent = zone.label;
+  zoneEl.className = 'slider-zone-label ' + zone.cls;
+  document.getElementById('dial-desc').textContent = zone.desc;
+  const stdTier = (_config.tiers || []).find(t => t.name === 'Standard');
+  const stdGrp = stdTier ? stdTier.grp : 16;
+  document.getElementById('dial-preview').textContent =
+    'At this dial, 1 Graded RP earns ' + fmtRyo(1 * v * aw) + ' and a Standard item costs ' + fmtRyo(stdGrp * v * aw);
+  document.querySelectorAll('.tier-preview').forEach((el, i) => {
+    el.textContent = fmtRyo((_config.tiers[i]?.grp || 0) * v * aw);
+  });
+  updateSliderTrack(slider, getZoneColor(zone.cls));
+}
+function updateFloorSlider() {
+  const slider = document.getElementById('floor-slider');
+  if (!slider) return;
+  const v = parseInt(slider.value);
+  _config.aw_floor = v;
+  const zone = getFloorZone(v);
+  document.getElementById('floor-value').textContent = v;
+  const zoneEl = document.getElementById('floor-zone');
+  zoneEl.textContent = zone.label;
+  zoneEl.className = 'slider-zone-label ' + zone.cls;
+  document.getElementById('floor-desc').textContent = zone.desc;
+  document.getElementById('floor-preview').textContent =
+    'At this floor, the minimum 1 Graded RP earns is ' + fmtRyo(1 * _config.master_dial * v);
+  updateSliderTrack(slider, getZoneColor(zone.cls));
+}
+function updateAlphaSlider() {
+  const slider = document.getElementById('alpha-slider');
+  if (!slider) return;
+  const v = parseFloat(slider.value);
+  _config.smoothing_alpha = v;
+  const zone = getAlphaZone(v);
+  document.getElementById('alpha-value').textContent = v.toFixed(2);
+  const zoneEl = document.getElementById('alpha-zone');
+  zoneEl.textContent = zone.label;
+  zoneEl.className = 'slider-zone-label ' + zone.cls;
+  document.getElementById('alpha-desc').textContent = zone.desc;
+  const shift = (30 * v).toFixed(1);
+  document.getElementById('alpha-preview').textContent =
+    'A 30% spike in player wealth would shift AW by approximately ' + shift + '% this week';
+  updateSliderTrack(slider, getZoneColor(zone.cls));
+}
+function updateMethodInfo() {
+  const method = _config.aw_method || 'trimmed_mean';
+  const gini = calcGini(_data);
+  const el = document.getElementById('method-info');
+  if (!el) return;
+  if (method === 'median') {
+    el.className = 'method-info method-info-blue';
+    el.textContent = 'Median mode active \u2014 whale balances cannot skew AW. Recommended when Gini > 0.35';
+  } else if (gini > 0.35) {
+    el.className = 'method-info method-info-yellow';
+    el.textContent = '\u26a0\ufe0f Gini is ' + gini.toFixed(2) + ' \u2014 consider switching to Median';
+  } else {
+    el.className = 'method-info method-info-blue';
+    el.textContent = 'Trimmed Mean active \u2014 balanced weighting of all player balances';
+  }
+}
+function initSliders() {
+  updateDialSlider();
+  updateFloorSlider();
+  updateAlphaSlider();
+  updateMethodInfo();
+}
+
 function renderPage() {
   const root = document.getElementById('root');
   const aw   = calcAW(_data);
@@ -82,43 +367,57 @@ function renderPage() {
   <!-- MASTER DIAL -->
   ${sectionHeader('Master Dial')}
   <div class="settings-section">
-    <div style="display:grid;grid-template-columns:1fr 180px 180px;gap:1rem;align-items:center">
-      <div>
-        <div style="font-weight:bold;margin-bottom:0.25rem">Graded RP Reward Target</div>
-        <div style="font-size:0.8rem;color:var(--ash);font-style:italic">Baseline is 0.005. Higher = bigger rewards and prices. Effort ratios never change.</div>
+    <div style="font-weight:bold;margin-bottom:0.25rem">Graded RP Reward Target</div>
+    <div class="slider-wrap">
+      <div class="slider-header">
+        <span class="slider-value" id="dial-value">${_config.master_dial}</span>
+        <span class="slider-zone-label" id="dial-zone"></span>
       </div>
-      <input type="number" class="settings-input" id="dial-input"
-        value="${_config.master_dial}" step="0.0001" min="0.001" max="0.1"
-        style="font-size:1.1rem;text-align:center">
-      <div class="preview-val" id="dial-preview">1 GRP = ${fmtRyo(1 * _config.master_dial * aw)}</div>
+      <input type="range" class="economy-slider" id="dial-slider"
+        min="0.001" max="0.020" step="0.0001" value="${_config.master_dial}">
+      <div class="slider-desc" id="dial-desc"></div>
+      <div class="slider-preview" id="dial-preview"></div>
     </div>
   </div>
 
   <!-- SAFETY VARIABLES -->
   ${sectionHeader('Economy Safety Settings')}
   <div class="settings-section">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem">
+    <div class="safety-grid">
       <div>
         <div style="font-weight:bold;margin-bottom:0.25rem">AW Floor</div>
-        <div style="font-size:0.75rem;color:var(--ash);font-style:italic;margin-bottom:0.5rem">Economy never anchors below this value. Prevents ¥0 prices when no history exists.</div>
-        <input type="number" class="settings-input" id="floor-input"
-          value="${_config.aw_floor || 200}" step="10" min="0"
-          style="font-size:1rem;text-align:center;width:120px">
+        <div class="slider-wrap">
+          <div class="slider-header">
+            <span class="slider-value" id="floor-value">${_config.aw_floor || 200}</span>
+            <span class="slider-zone-label" id="floor-zone"></span>
+          </div>
+          <input type="range" class="economy-slider" id="floor-slider"
+            min="0" max="2000" step="50" value="${_config.aw_floor || 200}">
+          <div class="slider-desc" id="floor-desc"></div>
+          <div class="slider-preview" id="floor-preview"></div>
+        </div>
       </div>
       <div>
         <div style="font-weight:bold;margin-bottom:0.25rem">Smoothing Alpha</div>
-        <div style="font-size:0.75rem;color:var(--ash);font-style:italic;margin-bottom:0.5rem">Controls how fast AW responds to weekly changes. Higher = faster response.</div>
-        <input type="number" class="settings-input" id="alpha-input"
-          value="${_config.smoothing_alpha || 0.4}" step="0.05" min="0.1" max="1.0"
-          style="font-size:1rem;text-align:center;width:120px">
+        <div class="slider-wrap">
+          <div class="slider-header">
+            <span class="slider-value" id="alpha-value">${_config.smoothing_alpha || 0.4}</span>
+            <span class="slider-zone-label" id="alpha-zone"></span>
+          </div>
+          <input type="range" class="economy-slider" id="alpha-slider"
+            min="0.1" max="1.0" step="0.05" value="${_config.smoothing_alpha || 0.4}">
+          <div class="slider-desc" id="alpha-desc"></div>
+          <div class="slider-preview" id="alpha-preview"></div>
+        </div>
       </div>
       <div>
         <div style="font-weight:bold;margin-bottom:0.25rem">AW Method</div>
         <div style="font-size:0.75rem;color:var(--ash);font-style:italic;margin-bottom:0.5rem">Switch to Median when Gini &gt; 0.35 to prevent whale inflation.</div>
-        <select id="method-input" class="settings-input" style="font-size:1rem;text-align:center;width:160px;text-align-last:center">
-          <option value="trimmed_mean" ${(_config.aw_method || 'trimmed_mean') === 'trimmed_mean' ? 'selected' : ''}>Trimmed Mean</option>
-          <option value="median" ${_config.aw_method === 'median' ? 'selected' : ''}>Median</option>
-        </select>
+        <div class="method-toggle-wrap">
+          <button type="button" class="method-toggle-btn ${(_config.aw_method||'trimmed_mean')==='trimmed_mean'?'active':''}" data-method="trimmed_mean">Trimmed Mean</button>
+          <button type="button" class="method-toggle-btn ${_config.aw_method==='median'?'active':''}" data-method="median">Median</button>
+        </div>
+        <div class="method-info" id="method-info"></div>
       </div>
     </div>
   </div>
@@ -126,17 +425,17 @@ function renderPage() {
   <!-- TIER COSTS -->
   ${sectionHeader('Tier Graded RP Costs')}
   <div class="settings-section">
-    <div style="display:grid;grid-template-columns:1fr 140px 140px;gap:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:0.5rem">
-      <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Tier</span>
-      <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);text-align:right">GRP Cost</span>
-      <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);text-align:right">Ryo at current AW</span>
+    <div class="tier-header">
+      <span class="col-label">Tier</span>
+      <span class="col-label right">GRP Cost</span>
+      <span class="col-label right">Ryo at current AW</span>
     </div>
     ${(_config.tiers||[]).map((t,i) => `
       <div class="settings-row">
         <label>${t.name}</label>
-        <input type="number" class="settings-input tier-grp" data-idx="${i}"
-          value="${t.grp}" min="1" step="1">
-        <div class="preview-val tier-preview" data-idx="${i}">${calcRyo(t.grp)}</div>
+        <div><span class="m-label">GRP Cost</span><input type="number" class="settings-input tier-grp" data-idx="${i}"
+          value="${t.grp}" min="1" step="1"></div>
+        <div><span class="m-label">Ryo Value</span><div class="preview-val tier-preview" data-idx="${i}">${calcRyo(t.grp)}</div></div>
       </div>`).join('')}
   </div>
 
@@ -152,31 +451,22 @@ function renderPage() {
     ${renderIncomeList(_incomes.filter(i => i.category === 'staff'), 'staff')}
   </div>`;
 
-  // Dial input with confirmation tracking
-  let _originalDial = _config.master_dial;
-  document.getElementById('dial-input').addEventListener('input', function() {
-    const v = parseFloat(this.value)||0.005;
-    _config.master_dial = v;
-    document.getElementById('dial-preview').textContent = '1 GRP = ' + fmtRyo(v * aw);
-    document.querySelectorAll('.tier-preview').forEach((el, i) => {
-      el.textContent = fmtRyo((_config.tiers[i]?.grp||0) * v * aw);
+  // Slider handlers
+  document.getElementById('dial-slider').addEventListener('input', function() { updateDialSlider(); markDirty(); });
+  document.getElementById('floor-slider').addEventListener('input', function() { updateFloorSlider(); markDirty(); });
+  document.getElementById('alpha-slider').addEventListener('input', function() { updateAlphaSlider(); markDirty(); });
+  document.querySelectorAll('.method-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      _config.aw_method = this.dataset.method;
+      document.querySelectorAll('.method-toggle-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      updateMethodInfo();
+      markDirty();
     });
-    markDirty();
   });
 
-  // Safety variable inputs
-  document.getElementById('floor-input').addEventListener('input', function() {
-    _config.aw_floor = parseFloat(this.value) || 200;
-    markDirty();
-  });
-  document.getElementById('alpha-input').addEventListener('input', function() {
-    _config.smoothing_alpha = parseFloat(this.value) || 0.4;
-    markDirty();
-  });
-  document.getElementById('method-input').addEventListener('change', function() {
-    _config.aw_method = this.value || 'trimmed_mean';
-    markDirty();
-  });
+  // Initialize slider visuals
+  initSliders();
 
   // Tier GRP inputs
   root.addEventListener('input', e => {
@@ -232,16 +522,16 @@ function renderPage() {
 function renderIncomeList(incomes, category) {
   const addId = category === 'staff' ? 'add-staff-btn' : 'add-player-btn';
   return `
-  <div style="display:grid;grid-template-columns:1fr 120px 80px;gap:0.75rem;padding-bottom:0.5rem;border-bottom:1px solid var(--border-dim);margin-bottom:0.5rem">
-    <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Activity</span>
-    <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash);text-align:right">Graded RP</span>
+  <div class="income-header">
+    <span class="col-label">Activity</span>
+    <span class="col-label right">Graded RP</span>
     <span></span>
   </div>
   ${incomes.map(inc => `
     <div class="settings-row">
-      <input type="text" class="settings-input income-name" data-id="${inc.id}" value="${inc.name}" style="text-align:left">
-      <input type="number" class="settings-input income-grp" data-id="${inc.id}" value="${inc.grp}" min="1" step="1">
-      <button class="del-btn del-income" data-id="${inc.id}">✕</button>
+      <div><span class="m-label">Activity</span><input type="text" class="settings-input income-name" data-id="${inc.id}" value="${inc.name}" style="text-align:left"></div>
+      <div><span class="m-label">Graded RP</span><input type="number" class="settings-input income-grp" data-id="${inc.id}" value="${inc.grp}" min="1" step="1"></div>
+      <button class="del-btn del-income" data-id="${inc.id}">Remove</button>
     </div>`).join('')}
   <div class="add-row">
     <input type="text" class="settings-input" id="${addId}-name" placeholder="New activity name" style="text-align:left">
@@ -262,13 +552,11 @@ function addIncome(category) {
 }
 
 async function saveAll() {
-  // Dial change confirmation
-  const originalDial = _data?.config?.master_dial ?? _data?.meta?.master_dial ?? 0.005;
-  if (_config.master_dial !== originalDial) {
+  // Dial change confirmation — warn if more than 50% away from baseline
+  const dialDeviation = Math.abs(_config.master_dial - 0.005) / 0.005;
+  if (dialDeviation > 0.5) {
     const confirmed = confirm(
-      'Changing the Master Dial affects all prices and income simultaneously. ' +
-      'Graded RP effort ratios stay the same. Recommended: only change during planned ' +
-      'season resets, not week to week. Frequent changes feel unstable to players tracking goals. Continue?'
+      'This is a significant dial change. Only recommended during planned season resets. Continue?'
     );
     if (!confirmed) return;
   }
