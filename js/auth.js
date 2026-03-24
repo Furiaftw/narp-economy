@@ -4,9 +4,6 @@
 
 let _user = null;
 
-// Desktop breakpoint query — used to determine sidebar vs inline admin nav
-const _desktopMQ = (typeof window !== 'undefined') ? window.matchMedia('(min-width: 769px)') : null;
-
 // Admin email whitelist (fallback when Netlify Identity roles are not set)
 window.NARP_ADMINS = ['grisales4000@gmail.com'];
 
@@ -19,11 +16,6 @@ function initAuth(onReady) {
   netlifyIdentity.on('login',  u => { _user = u; updateNavAuth(); netlifyIdentity.close(); });
   netlifyIdentity.on('logout', () => { _user = null; updateNavAuth(); });
   netlifyIdentity.init();
-
-  // Re-evaluate admin nav layout when viewport crosses the breakpoint
-  if (_desktopMQ) {
-    _desktopMQ.addEventListener('change', () => updateNavAuth());
-  }
 }
 
 function isLoggedIn()  { return !!_user; }
@@ -58,7 +50,6 @@ function updateNavAuth() {
   const userEl    = document.getElementById('nav-user');
   const loginBtn  = document.getElementById('btn-login');
   const logoutBtn = document.getElementById('btn-logout');
-  const adminNavMobileItems = document.querySelectorAll('.admin-nav-mobile');
   const adminSidebar   = document.getElementById('admin-sidebar');
   const adminBanner    = document.getElementById('admin-banner');
 
@@ -67,28 +58,22 @@ function updateNavAuth() {
   if (logoutBtn) logoutBtn.style.display  = isLoggedIn() ? 'inline-flex' : 'none';
   if (adminBanner) adminBanner.style.display = isAdmin() ? 'flex' : 'none';
 
-  // Use JS viewport detection instead of relying on CSS media queries
-  const isDesktop = _desktopMQ ? _desktopMQ.matches : true;
   const admin = isAdmin();
 
-  // Desktop: show sidebar, hide inline admin links
-  // Mobile:  hide sidebar, show inline admin links
-  adminNavMobileItems.forEach(el => {
-    el.style.display = (admin && !isDesktop) ? '' : 'none';
-  });
+  // Show or hide the admin sidebar (CSS handles desktop vs mobile layout)
   if (adminSidebar) {
-    adminSidebar.style.display = (admin && isDesktop) ? 'flex' : 'none';
+    adminSidebar.style.display = admin ? 'flex' : 'none';
   }
 
-  // Toggle body class for sidebar content offset (desktop only)
-  if (admin && isDesktop) {
+  // Toggle body class for sidebar content offset
+  if (admin) {
     document.body.classList.add('has-admin-sidebar');
   } else {
     document.body.classList.remove('has-admin-sidebar');
   }
 
   // Update scroll hint visibility for admin sidebar
-  if (adminSidebar && admin && isDesktop) {
+  if (adminSidebar && admin) {
     requestAnimationFrame(() => {
       const nav = document.getElementById('admin-sidebar-nav');
       const hint = document.getElementById('admin-scroll-hint');
