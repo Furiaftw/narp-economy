@@ -11,7 +11,7 @@
 
 const { getStore, connectLambda } = require('@netlify/blobs');
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   const headers = { 'Content-Type': 'application/json' };
 
   // Only accept POST
@@ -20,7 +20,7 @@ exports.handler = async (event) => {
   }
 
   // Verify admin identity via Netlify Identity context
-  const user = event.context?.clientContext?.user;
+  const user = context.clientContext?.user;
   if (!user || !user.email) {
     return { statusCode: 401, headers, body: JSON.stringify({ error: 'Not authenticated' }) };
   }
