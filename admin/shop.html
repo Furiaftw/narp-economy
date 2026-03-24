@@ -98,6 +98,20 @@ let _data  = null;
 let _items = [];
 let _editId = null;
 let _pricingMode = 'tier';
+let _currentTags = [];
+
+function tagColor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  const hue = ((h % 360) + 360) % 360;
+  return 'hsl(' + hue + ',55%,45%)';
+}
+
+function getAllExistingTags() {
+  const set = new Set();
+  _items.forEach(i => (i.tags || []).forEach(t => set.add(t)));
+  return [...set].sort();
+}
 
 initAuth(async () => {
   if (!requireAdmin()) return;
@@ -128,6 +142,14 @@ function renderPage() {
         <label>Item ID (Tatsu bot)</label>
         <input type="text" id="f-itemid" placeholder="e.g. 12345">
       </div>
+    </div>
+
+    <!-- Tags -->
+    <div class="form-field" style="margin-bottom:1rem">
+      <label>Tags</label>
+      <input type="text" id="f-tag-input" placeholder="Type a tag and press Enter…" style="width:100%;background:var(--ink-light);border:1px solid var(--border-dim);border-radius:4px;padding:0.5rem 0.75rem;color:var(--paper);font-family:var(--ff-body);font-size:0.95rem;outline:none;transition:border-color 0.2s;margin-bottom:0">
+      <div class="tag-chips" id="tag-chips"></div>
+      <div class="tag-suggestions" id="tag-suggestions"></div>
     </div>
 
     <!-- Pricing mode tabs -->
@@ -188,6 +210,7 @@ function renderPage() {
             <div>
               <strong>${item.name}</strong>
               ${item.item_id ? `<span style="font-size:0.7rem;color:var(--ash);margin-left:0.5rem">#${item.item_id}</span>` : ''}
+              ${(item.tags||[]).map(t => `<span class="tag-badge" style="background:${tagColor(t)}20;color:${tagColor(t)}">${t}</span>`).join('')}
             </div>
             <div>${tierBadge(item.tier||'Custom')}</div>
             <div class="ryo">${fmtRyo(item.price_ryo||0)}</div>
@@ -234,6 +257,48 @@ function renderPage() {
   document.getElementById('f-ryo').addEventListener('input', updatePreview);
   updatePreview();
 
+  // Tag chip editor
+  function renderTags() {
+    const container = document.getElementById('tag-chips');
+    container.innerHTML = _currentTags.map((t, idx) =>
+      `<span class="tag-chip" style="background:${tagColor(t)}">${t}<button class="tag-chip-remove" data-idx="${idx}">&times;</button></span>`
+    ).join('');
+    renderSuggestions();
+  }
+  function renderSuggestions() {
+    const existing = getAllExistingTags().filter(t => !_currentTags.includes(t));
+    const container = document.getElementById('tag-suggestions');
+    if (existing.length === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = existing.map(t =>
+      `<button class="tag-suggestion" style="color:${tagColor(t)};border-color:${tagColor(t)}">${t}</button>`
+    ).join('');
+  }
+  function addTag(val) {
+    const t = val.trim();
+    if (t && !_currentTags.includes(t)) { _currentTags.push(t); renderTags(); }
+  }
+  const tagInput = document.getElementById('f-tag-input');
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput.value.replace(/,/g, ''));
+      tagInput.value = '';
+    }
+  });
+  document.getElementById('tag-chips').addEventListener('click', e => {
+    const rm = e.target.closest('.tag-chip-remove');
+    if (!rm) return;
+    _currentTags.splice(parseInt(rm.dataset.idx), 1);
+    renderTags();
+  });
+  document.getElementById('tag-suggestions').addEventListener('click', e => {
+    const btn = e.target.closest('.tag-suggestion');
+    if (!btn) return;
+    addTag(btn.textContent);
+    tagInput.value = '';
+  });
+  renderTags();
+
   // Save
   document.getElementById('save-btn').addEventListener('click', async () => {
     const name   = document.getElementById('f-name').value.trim();
@@ -244,6 +309,7 @@ function renderPage() {
       _id:          _editId || 'item_' + Date.now(),
       name,
       item_id:      itemId,
+      tags:         [..._currentTags],
       pricing_mode: _pricingMode,
       tier:         _pricingMode === 'tier' ? document.getElementById('f-tier').value : null,
       custom_grp:   _pricingMode === 'grp'  ? parseFloat(document.getElementById('f-grp').value)||0 : 0,
@@ -262,7 +328,7 @@ function renderPage() {
       await adminSave('shop', _items);
       _data  = await forceRefresh();
       _items = (_data.shop_items||[]).map((item,i) => ({ ...item, _id: item._id||'item_'+i }));
-      _editId = null; _pricingMode = 'tier';
+      _editId = null; _pricingMode = 'tier'; _currentTags = [];
       renderPage();
     } catch(err) {
       alert('Save failed: ' + err.message);
@@ -272,7 +338,7 @@ function renderPage() {
 
   // Cancel edit
   document.getElementById('cancel-btn').addEventListener('click', () => {
-    _editId = null; _pricingMode = 'tier'; renderPage();
+    _editId = null; _pricingMode = 'tier'; _currentTags = []; renderPage();
   });
 
   // Edit / Delete buttons
@@ -286,6 +352,7 @@ function renderPage() {
       if (!item) return;
       _editId = id;
       _pricingMode = item.pricing_mode || 'tier';
+      _currentTags = [...(item.tags || [])];
       document.getElementById('f-name').value   = item.name || '';
       document.getElementById('f-itemid').value = item.item_id || '';
       document.getElementById('form-title').textContent = '✏️ Editing: ' + item.name;
@@ -302,6 +369,7 @@ function renderPage() {
       if (item.custom_grp) document.getElementById('f-grp').value  = item.custom_grp;
       if (item.custom_ryo) document.getElementById('f-ryo').value  = item.custom_ryo;
       updatePreview();
+      renderTags();
       document.getElementById('item-form').scrollIntoView({ behavior: 'smooth' });
     }
 
