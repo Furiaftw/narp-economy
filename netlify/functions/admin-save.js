@@ -44,7 +44,7 @@ exports.handler = async (event) => {
   }
 
   const { key, data } = payload;
-  const allowedKeys = ['config', 'shop', 'incomes', 'history'];
+  const allowedKeys = ['config', 'shop', 'incomes', 'history', 'auctions'];
   if (!allowedKeys.includes(key)) {
     return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid key: ' + key }) };
   }

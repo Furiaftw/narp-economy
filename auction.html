@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Economy — Auction House</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    .auction-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .auction-card {
+      background: var(--ink-mid);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.2s;
+    }
+    .auction-card:hover { border-color: var(--border); transform: translateY(-2px); }
+    .auction-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--seal-gold), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .auction-card:hover::before { opacity: 0.6; }
+    .auction-card.status-ended { opacity: 0.7; }
+    .auction-card-img {
+      width: 100%;
+      height: 180px;
+      object-fit: cover;
+      border-radius: var(--radius);
+      margin-bottom: 1rem;
+      background: var(--ink-light);
+    }
+    .auction-name {
+      font-family: var(--ff-display);
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--seal-gold);
+      margin-bottom: 0.35rem;
+    }
+    .auction-desc {
+      font-size: 0.9rem;
+      color: var(--ash-light);
+      font-style: italic;
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+    .auction-stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid rgba(201,168,76,0.06);
+    }
+    .auction-stat:last-child { border-bottom: none; }
+    .auction-stat-label {
+      font-family: var(--ff-display);
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ash);
+    }
+    .auction-stat-value {
+      font-family: var(--ff-display);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--paper);
+    }
+    .auction-stat-value.ryo { color: var(--seal-gold); }
+    .auction-countdown {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: var(--ink-light);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius);
+      text-align: center;
+      font-family: var(--ff-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--seal-gold);
+    }
+    .auction-countdown.ended { color: var(--seal-red); font-size: 0.8rem; }
+    .auction-notes {
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: rgba(74,158,255,0.06);
+      border: 1px solid rgba(74,158,255,0.12);
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      color: var(--chakra);
+      font-style: italic;
+    }
+    .auction-status-badge {
+      display: inline-block;
+      padding: 0.15rem 0.55rem;
+      border-radius: 2px;
+      font-family: var(--ff-display);
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+    .badge-active { background: rgba(45,122,94,0.2); color: #5bbf94; border: 1px solid rgba(45,122,94,0.3); }
+    .badge-upcoming { background: rgba(74,158,255,0.15); color: #7ab8f5; border: 1px solid rgba(74,158,255,0.3); }
+    .badge-ended { background: rgba(201,168,76,0.15); color: #d4b060; border: 1px solid rgba(201,168,76,0.3); }
+    .auction-winner {
+      margin-top: 0.75rem;
+      padding: 0.6rem 0.85rem;
+      background: rgba(201,168,76,0.08);
+      border: 1px solid rgba(201,168,76,0.2);
+      border-radius: var(--radius);
+      text-align: center;
+    }
+    .auction-winner-label {
+      font-family: var(--ff-display);
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ash);
+    }
+    .auction-winner-name {
+      font-family: var(--ff-display);
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--seal-gold);
+    }
+    .ended-toggle {
+      cursor: pointer;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .ended-toggle-arrow {
+      transition: transform 0.3s;
+      font-size: 0.7rem;
+      color: var(--ash);
+    }
+    .ended-toggle-arrow.open { transform: rotate(90deg); }
+    .upcoming-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+    .upcoming-card {
+      background: var(--ink-mid);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem;
+      transition: border-color 0.3s;
+    }
+    .upcoming-card:hover { border-color: var(--border); }
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      background: var(--ink-mid);
+      border: 1px solid var(--border-dim);
+      border-radius: var(--radius-lg);
+      margin-bottom: 2rem;
+    }
+    .empty-state-icon {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      opacity: 0.4;
+    }
+    .empty-state-text {
+      font-family: var(--ff-display);
+      font-size: 0.75rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ash);
+    }
+  </style>
+</head>
+<body>
+<div id="nav-mount"></div>
+
+<section class="hero" style="padding:3.5rem 2rem 2.5rem">
+  <div class="hero-seal">競</div>
+  <div class="hero-kamon">🏛️</div>
+  <div class="hero-eyebrow">Ninja Art Roleplay Platform</div>
+  <h1 class="hero-title">The <em>Auction</em> House</h1>
+  <p class="hero-sub">Limited items up for bid. All bidding is handled in Discord — place bids in #auction-house.</p>
+</section>
+
+<div class="container">
+  <div id="auction-root"><div class="loading-seal"><div class="spinner"></div><p>Loading auctions...</p></div></div>
+</div>
+
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Auction House</span></footer>
+
+<script type="module">
+import { fetchAPI, fmtRyo } from '/js/api.js';
+import { initAuth, login, logout } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, tierBadge, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('auction');
+initAuth();
+attachGlobalHandlers(login, logout);
+
+function tagColor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  const hue = ((h % 360) + 360) % 360;
+  return 'hsl(' + hue + ',55%,45%)';
+}
+
+function fmtCountdown(ms) {
+  if (ms <= 0) return null;
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (d > 0) return d + 'd ' + h + 'h ' + m + 'm ' + sec + 's';
+  if (h > 0) return h + 'h ' + m + 'm ' + sec + 's';
+  return m + 'm ' + sec + 's';
+}
+
+let _endedOpen = false;
+
+async function render() {
+  const root = document.getElementById('auction-root');
+  try {
+    const data = await fetchAPI();
+    const auctions = data.auctions || [];
+
+    const active   = auctions.filter(a => a.status === 'active');
+    const upcoming = auctions.filter(a => a.status === 'upcoming');
+    const ended    = auctions.filter(a => a.status === 'ended');
+
+    let html = '';
+
+    // Active Auctions
+    html += sectionHeader('Active Auctions');
+    if (active.length === 0) {
+      html += `<div class="empty-state fade-in">
+        <div class="empty-state-icon">🏛️</div>
+        <div class="empty-state-text">No active auctions. Check back soon.</div>
+      </div>`;
+    } else {
+      html += '<div class="auction-grid">';
+      active.forEach((a, i) => {
+        html += renderAuctionCard(a, i);
+      });
+      html += '</div>';
+    }
+
+    // Upcoming Auctions
+    if (upcoming.length > 0) {
+      html += sectionHeader('Upcoming Auctions');
+      html += '<div class="upcoming-grid">';
+      upcoming.forEach((a, i) => {
+        html += `<div class="upcoming-card fade-in stagger-${(i % 5) + 1}">
+          <span class="auction-status-badge badge-upcoming">Upcoming</span>
+          ${a.tier ? tierBadge(a.tier) : ''}
+          <div class="auction-name" style="font-size:0.95rem">${esc(a.item_name)}</div>
+          ${a.description ? `<div class="auction-desc" style="font-size:0.85rem;margin-bottom:0.5rem">${esc(a.description)}</div>` : ''}
+          ${(a.tags || []).length > 0 ? '<div style="margin-bottom:0.5rem">' + a.tags.map(t => `<span class="tag-badge" style="background:${tagColor(t)}20;color:${tagColor(t)}">${esc(t)}</span>`).join(' ') + '</div>' : ''}
+          <div class="auction-stat">
+            <span class="auction-stat-label">Minimum Bid</span>
+            <span class="auction-stat-value ryo">${fmtRyo(a.minimum_bid || 0)}</span>
+          </div>
+          <div class="auction-stat">
+            <span class="auction-stat-label">Starts</span>
+            <span class="auction-stat-value" style="font-size:0.8rem">${formatDateTime(a.ends_at)}</span>
+          </div>
+          ${a.notes ? `<div class="auction-notes">${esc(a.notes)}</div>` : ''}
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    // Ended Auctions
+    if (ended.length > 0) {
+      html += `<div style="margin-bottom:2rem">
+        <div class="section-header ended-toggle" id="ended-toggle">
+          <span class="ended-toggle-arrow ${_endedOpen ? 'open' : ''}" id="ended-arrow">▶</span>
+          <span class="section-title">Ended Auctions (${ended.length})</span>
+          <div class="section-line"></div>
+        </div>
+        <div id="ended-section" style="display:${_endedOpen ? 'block' : 'none'}">
+          <div class="upcoming-grid">
+            ${ended.map((a, i) => `<div class="upcoming-card fade-in stagger-${(i % 5) + 1}" style="opacity:0.7">
+              <span class="auction-status-badge badge-ended">Ended</span>
+              ${a.tier ? tierBadge(a.tier) : ''}
+              <div class="auction-name" style="font-size:0.95rem">${esc(a.item_name)}</div>
+              <div class="auction-stat">
+                <span class="auction-stat-label">Final Bid</span>
+                <span class="auction-stat-value ryo">${fmtRyo(a.current_bid || 0)}</span>
+              </div>
+              ${a.winner ? `<div class="auction-winner">
+                <div class="auction-winner-label">Winner</div>
+                <div class="auction-winner-name">${esc(a.winner)}</div>
+              </div>` : ''}
+            </div>`).join('')}
+          </div>
+        </div>
+      </div>`;
+    }
+
+    root.innerHTML = html;
+
+    // Ended section toggle
+    const toggle = document.getElementById('ended-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', () => {
+        _endedOpen = !_endedOpen;
+        document.getElementById('ended-section').style.display = _endedOpen ? 'block' : 'none';
+        document.getElementById('ended-arrow').classList.toggle('open', _endedOpen);
+      });
+    }
+
+    // Start countdown timers
+    startCountdowns();
+  } catch (err) {
+    root.innerHTML = renderError(err.message);
+  }
+}
+
+function renderAuctionCard(a, i) {
+  return `<div class="auction-card fade-in stagger-${(i % 5) + 1}">
+    <span class="auction-status-badge badge-active">Live</span>
+    ${a.tier ? tierBadge(a.tier) : ''}
+    ${(a.tags || []).length > 0 ? '<div style="margin-bottom:0.5rem">' + a.tags.map(t => `<span class="tag-badge" style="background:${tagColor(t)}20;color:${tagColor(t)}">${esc(t)}</span>`).join(' ') + '</div>' : ''}
+    ${a.image_url ? `<img class="auction-card-img" src="${esc(a.image_url)}" alt="${esc(a.item_name)}" onerror="this.style.display='none'">` : ''}
+    <div class="auction-name">${esc(a.item_name)}</div>
+    ${a.description ? `<div class="auction-desc">${esc(a.description)}</div>` : ''}
+    <div class="auction-stat">
+      <span class="auction-stat-label">Current Bid</span>
+      <span class="auction-stat-value ryo">${fmtRyo(a.current_bid || 0)}</span>
+    </div>
+    <div class="auction-stat">
+      <span class="auction-stat-label">Current Bidder</span>
+      <span class="auction-stat-value">${esc(a.current_bidder || 'No bids yet')}</span>
+    </div>
+    <div class="auction-stat">
+      <span class="auction-stat-label">Minimum Next Bid</span>
+      <span class="auction-stat-value ryo">${fmtRyo(a.minimum_bid || 0)}</span>
+    </div>
+    <div class="auction-countdown" data-ends="${a.ends_at || ''}">Loading...</div>
+    ${a.notes ? `<div class="auction-notes">${esc(a.notes)}</div>` : ''}
+  </div>`;
+}
+
+function startCountdowns() {
+  const els = document.querySelectorAll('.auction-countdown[data-ends]');
+  if (els.length === 0) return;
+
+  function tick() {
+    const now = Date.now();
+    els.forEach(el => {
+      const ends = new Date(el.dataset.ends).getTime();
+      const remaining = ends - now;
+      const text = fmtCountdown(remaining);
+      if (text) {
+        el.textContent = text;
+        el.classList.remove('ended');
+      } else {
+        el.textContent = 'ENDED \u2014 Awaiting staff confirmation';
+        el.classList.add('ended');
+      }
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+function formatDateTime(iso) {
+  if (!iso) return '\u2014';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+
+function esc(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+render();
+</script>
+</body>
+</html>

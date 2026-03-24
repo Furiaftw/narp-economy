@@ -8,8 +8,9 @@ import { login, logout, isAdmin } from './auth.js';
 
 function renderNav(activePage) {
   const publicPages = [
-    { href: '/index.html',  label: 'Shop',   key: 'shop'   },
-    { href: '/income.html', label: 'Income', key: 'income' },
+    { href: '/index.html',   label: 'Shop',    key: 'shop'    },
+    { href: '/auction.html', label: 'Auction', key: 'auction' },
+    { href: '/income.html',  label: 'Income',  key: 'income'  },
   ];
 
   const adminPages = [
@@ -19,6 +20,7 @@ function renderNav(activePage) {
     { href: '/admin/economy.html',    label: 'Economy',    key: 'economy'    },
     { href: '/admin/commands.html',   label: 'Commands',   key: 'commands'   },
     { href: '/admin/purchasing.html', label: 'Pwr Table',  key: 'purchasing' },
+    { href: '/admin/auction.html',    label: 'Auctions',   key: 'auctions'   },
     { href: '/admin/inflation.html',  label: 'Inflation',  key: 'inflation'  },
     { href: '/admin/gini.html',       label: 'Gini',       key: 'gini'       },
   ];
