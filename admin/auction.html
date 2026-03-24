@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NARP Admin — Auctions</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
+  <style>
+    .auction-form {
+      background: var(--ink-mid);
+      border: 1px solid var(--border-dim);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 1rem; }
+    .form-field label {
+      display: block;
+      font-family: var(--ff-display);
+      font-size: 0.6rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--ash);
+      margin-bottom: 0.35rem;
+    }
+    .form-field input, .form-field select, .form-field textarea {
+      width: 100%;
+      background: var(--ink-light);
+      border: 1px solid var(--border-dim);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      color: var(--paper);
+      font-family: var(--ff-body);
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--seal-gold); }
+    .form-field select option { background: var(--ink-mid); }
+    .form-field textarea { resize: vertical; min-height: 60px; }
+    .auction-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 120px 80px 100px;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid rgba(201,168,76,0.05);
+    }
+    .auction-row:last-child { border-bottom: none; }
+    .auction-row:hover { background: rgba(201,168,76,0.02); }
+    .del-btn { background: transparent; border: 1px solid rgba(192,57,43,0.3); color: #e07060; border-radius: 4px; padding: 0.3rem 0.6rem; font-family: var(--ff-display); font-size: 0.6rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; }
+    .del-btn:hover { background: rgba(192,57,43,0.1); }
+    .edit-btn { background: transparent; border: 1px solid var(--border); color: var(--seal-gold); border-radius: 4px; padding: 0.3rem 0.6rem; font-family: var(--ff-display); font-size: 0.6rem; letter-spacing: 0.05em; cursor: pointer; transition: all 0.2s; }
+    .edit-btn:hover { background: var(--seal-fade); }
+    .status-chip {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 2px;
+      font-family: var(--ff-display);
+      font-size: 0.55rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .status-chip.active { background: rgba(45,122,94,0.2); color: #5bbf94; }
+    .status-chip.upcoming { background: rgba(74,158,255,0.15); color: #7ab8f5; }
+    .status-chip.ended { background: rgba(201,168,76,0.15); color: #d4b060; }
+    .quick-update-label {
+      font-family: var(--ff-display);
+      font-size: 0.55rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--seal-red);
+      margin-bottom: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+<div id="nav-mount"></div>
+<section class="hero" style="padding:3rem 2rem 2.5rem">
+  <div class="hero-eyebrow">Admin Panel</div>
+  <h1 class="hero-title" style="font-size:clamp(1.6rem,4vw,2.8rem)">Manage <em>Auctions</em></h1>
+  <p class="hero-sub">Create, update, and manage auction items. Changes go live immediately.</p>
+</section>
+<div class="container">
+  <div id="root"><div class="loading-seal"><div class="spinner"></div><p>Loading auctions...</p></div></div>
+</div>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Admin</span></footer>
+<script type="module">
+import { fetchAPI, forceRefresh, adminSave, getTiers, fmtRyo } from '/js/api.js';
+import { initAuth, login, logout, requireAdmin } from '/js/auth.js';
+import { renderNav, renderError, sectionHeader, tierBadge, attachGlobalHandlers } from '/js/utils.js';
+
+document.getElementById('nav-mount').innerHTML = renderNav('auctions');
+attachGlobalHandlers(login, logout);
+
+let _data = null;
+let _auctions = [];
+let _editId = null;
+let _currentTags = [];
+
+function tagColor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  const hue = ((h % 360) + 360) % 360;
+  return 'hsl(' + hue + ',55%,45%)';
+}
+
+initAuth(async () => {
+  if (!requireAdmin()) return;
+  _data = await fetchAPI();
+  _auctions = (_data.auctions || []).map((a, i) => ({ ...a, _id: a._id || 'auction_' + i }));
+  renderPage();
+});
+
+function renderPage() {
+  const root = document.getElementById('root');
+  const tiers = getTiers(_data);
+  const editing = _editId ? _auctions.find(a => a._id === _editId) : null;
+  const isEditing = !!editing;
+
+  root.innerHTML = `
+  <!-- ADD / EDIT FORM -->
+  <div class="auction-form" id="auction-form">
+    <div style="font-family:var(--ff-display);font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--seal-gold);margin-bottom:1.25rem" id="form-title">
+      ${isEditing ? '✏️ Editing: ' + esc(editing.item_name) : '➕ Add New Auction'}
+    </div>
+
+    ${isEditing && editing.status === 'active' ? `<div class="quick-update-label">⚡ Quick Update — Current Bid &amp; Bidder first for live auctions</div>` : ''}
+
+    <!-- Quick update fields first when editing active auctions -->
+    ${isEditing && editing.status === 'active' ? `
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-field">
+        <label>Current Bid (Ryo)</label>
+        <input type="number" id="f-current-bid" value="${editing.current_bid || 0}" min="0">
+      </div>
+      <div class="form-field">
+        <label>Current Bidder</label>
+        <input type="text" id="f-current-bidder" value="${esc(editing.current_bidder || '')}" placeholder="Player name">
+      </div>
+      <div class="form-field">
+        <label>Minimum Next Bid (Ryo)</label>
+        <input type="number" id="f-min-bid" value="${editing.minimum_bid || 0}" min="0">
+      </div>
+    </div>
+    <div class="brush-divider" style="margin:1rem 0"></div>
+    ` : ''}
+
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-field" style="grid-column:span 2">
+        <label>Item Name</label>
+        <input type="text" id="f-name" placeholder="e.g. Legendary Blade of the Storm" value="${isEditing ? esc(editing.item_name) : ''}">
+      </div>
+      <div class="form-field">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="upcoming" ${isEditing && editing.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
+          <option value="active" ${isEditing && editing.status === 'active' ? 'selected' : ''}>Active</option>
+          <option value="ended" ${isEditing && editing.status === 'ended' ? 'selected' : ''}>Ended</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-field" style="margin-bottom:1rem">
+      <label>Description</label>
+      <textarea id="f-desc" placeholder="A weapon forged during the Great Storm event...">${isEditing ? esc(editing.description || '') : ''}</textarea>
+    </div>
+
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-field">
+        <label>Image URL (optional)</label>
+        <input type="text" id="f-image" placeholder="https://..." value="${isEditing ? esc(editing.image_url || '') : ''}">
+      </div>
+      <div class="form-field">
+        <label>Tier (display only)</label>
+        <select id="f-tier">
+          <option value="">— None —</option>
+          ${tiers.map(t => `<option value="${t.name}" ${isEditing && editing.tier === t.name ? 'selected' : ''}>${t.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <!-- Tags -->
+    <div class="form-field" style="margin-bottom:1rem">
+      <label>Tags</label>
+      <input type="text" id="f-tag-input" placeholder="Type a tag and press Enter..." style="width:100%;background:var(--ink-light);border:1px solid var(--border-dim);border-radius:4px;padding:0.5rem 0.75rem;color:var(--paper);font-family:var(--ff-body);font-size:0.95rem;outline:none">
+      <div class="tag-chips" id="tag-chips"></div>
+    </div>
+
+    <!-- Bid fields (when not already shown at top) -->
+    ${!(isEditing && editing.status === 'active') ? `
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-field">
+        <label>Current Bid (Ryo)</label>
+        <input type="number" id="f-current-bid" value="${isEditing ? editing.current_bid || 0 : 0}" min="0">
+      </div>
+      <div class="form-field">
+        <label>Current Bidder</label>
+        <input type="text" id="f-current-bidder" value="${isEditing ? esc(editing.current_bidder || '') : ''}" placeholder="Player name">
+      </div>
+      <div class="form-field">
+        <label>Minimum Next Bid (Ryo)</label>
+        <input type="number" id="f-min-bid" value="${isEditing ? editing.minimum_bid || 0 : 0}" min="0">
+      </div>
+    </div>
+    ` : ''}
+
+    <div class="form-grid" style="margin-bottom:1rem">
+      <div class="form-field">
+        <label>Bid Increment</label>
+        <input type="number" id="f-increment" value="${isEditing ? editing.bid_increment || 1000 : 1000}" min="0">
+      </div>
+      <div class="form-field">
+        <label>End Date &amp; Time</label>
+        <input type="datetime-local" id="f-ends" value="${isEditing && editing.ends_at ? toLocalInput(editing.ends_at) : ''}">
+      </div>
+      <div class="form-field">
+        <label>Winner (when ended)</label>
+        <input type="text" id="f-winner" value="${isEditing ? esc(editing.winner || '') : ''}" placeholder="Winner name">
+      </div>
+    </div>
+
+    <div class="form-field" style="margin-bottom:1.25rem">
+      <label>Notes (shown to players)</label>
+      <input type="text" id="f-notes" placeholder="e.g. Contact staff in #auction-house to place a bid" value="${isEditing ? esc(editing.notes || '') : ''}">
+    </div>
+
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+      <button class="btn btn-gold" id="save-btn">${isEditing ? 'Update Auction' : 'Create Auction'}</button>
+      ${isEditing ? '<button class="btn btn-ghost" id="cancel-btn">Cancel</button>' : ''}
+    </div>
+  </div>
+
+  <!-- AUCTION LIST -->
+  ${sectionHeader('All Auctions (' + _auctions.length + ')')}
+  ${_auctions.length === 0
+    ? '<div style="text-align:center;padding:3rem;color:var(--ash);font-style:italic">No auctions yet. Create one above.</div>'
+    : `<div style="background:var(--ink-mid);border:1px solid var(--border-dim);border-radius:8px;overflow:hidden">
+        <div class="auction-row" style="background:var(--ink-light)">
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Item</span>
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Status</span>
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Current Bid</span>
+          <span style="font-family:var(--ff-display);font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ash)">Bidder</span>
+          <span></span>
+        </div>
+        ${_auctions.map(a => `
+          <div class="auction-row" data-id="${a._id}">
+            <div>
+              <strong>${esc(a.item_name)}</strong>
+              ${a.tier ? ' ' + tierBadgeInline(a.tier) : ''}
+              ${(a.tags||[]).map(t => `<span class="tag-badge" style="background:${tagColor(t)}20;color:${tagColor(t)}">${esc(t)}</span>`).join('')}
+            </div>
+            <div><span class="status-chip ${a.status}">${a.status}</span></div>
+            <div class="ryo" style="font-family:var(--ff-display);font-weight:600;color:var(--seal-gold)">${fmtRyo(a.current_bid || 0)}</div>
+            <div style="font-size:0.85rem;color:var(--ash-light)">${esc(a.current_bidder || '—')}</div>
+            <div style="display:flex;gap:0.4rem">
+              <button class="edit-btn" data-id="${a._id}">Edit</button>
+              <button class="del-btn" data-id="${a._id}">✕</button>
+            </div>
+          </div>`).join('')}
+      </div>`
+  }`;
+
+  // Tags
+  renderTags();
+
+  const tagInput = document.getElementById('f-tag-input');
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addTag(tagInput.value.replace(/,/g, ''));
+      tagInput.value = '';
+    }
+  });
+  document.getElementById('tag-chips').addEventListener('click', e => {
+    const rm = e.target.closest('.tag-chip-remove');
+    if (!rm) return;
+    _currentTags.splice(parseInt(rm.dataset.idx), 1);
+    renderTags();
+  });
+
+  // Save
+  document.getElementById('save-btn').addEventListener('click', async () => {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { alert('Item name is required.'); return; }
+
+    const endsRaw = document.getElementById('f-ends').value;
+    const endsAt = endsRaw ? new Date(endsRaw).toISOString() : '';
+
+    const newAuction = {
+      _id:            _editId || 'auction_' + Date.now(),
+      item_name:      name,
+      description:    document.getElementById('f-desc').value.trim(),
+      image_url:      document.getElementById('f-image').value.trim(),
+      tier:           document.getElementById('f-tier').value || null,
+      tags:           [..._currentTags],
+      status:         document.getElementById('f-status').value,
+      current_bid:    parseFloat(document.getElementById('f-current-bid').value) || 0,
+      current_bidder: document.getElementById('f-current-bidder').value.trim(),
+      minimum_bid:    parseFloat(document.getElementById('f-min-bid').value) || 0,
+      bid_increment:  parseFloat(document.getElementById('f-increment').value) || 1000,
+      ends_at:        endsAt,
+      winner:         document.getElementById('f-winner').value.trim() || null,
+      notes:          document.getElementById('f-notes').value.trim(),
+    };
+
+    if (_editId) {
+      _auctions = _auctions.map(a => a._id === _editId ? newAuction : a);
+    } else {
+      _auctions.push(newAuction);
+    }
+
+    const btn = document.getElementById('save-btn');
+    btn.textContent = 'Saving...'; btn.disabled = true;
+    try {
+      await adminSave('auctions', _auctions);
+      _data = await forceRefresh();
+      _auctions = (_data.auctions || []).map((a, i) => ({ ...a, _id: a._id || 'auction_' + i }));
+      _editId = null; _currentTags = [];
+      renderPage();
+    } catch (err) {
+      alert('Save failed: ' + err.message);
+      btn.textContent = _editId ? 'Update Auction' : 'Create Auction'; btn.disabled = false;
+    }
+  });
+
+  // Cancel
+  const cancelBtn = document.getElementById('cancel-btn');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', () => {
+      _editId = null; _currentTags = []; renderPage();
+    });
+  }
+
+  // Edit / Delete buttons
+  root.addEventListener('click', async e => {
+    const editBtn = e.target.closest('.edit-btn');
+    const delBtn = e.target.closest('.del-btn');
+
+    if (editBtn) {
+      const id = editBtn.dataset.id;
+      const auction = _auctions.find(a => a._id === id);
+      if (!auction) return;
+      _editId = id;
+      _currentTags = [...(auction.tags || [])];
+      renderPage();
+      document.getElementById('auction-form').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (delBtn) {
+      const id = delBtn.dataset.id;
+      const auction = _auctions.find(a => a._id === id);
+      if (!auction || !confirm('Delete "' + auction.item_name + '"?')) return;
+      _auctions = _auctions.filter(a => a._id !== id);
+      try {
+        await adminSave('auctions', _auctions);
+        _data = await forceRefresh();
+        _auctions = (_data.auctions || []).map((a, i) => ({ ...a, _id: a._id || 'auction_' + i }));
+        renderPage();
+      } catch (err) { alert('Delete failed: ' + err.message); }
+    }
+  });
+}
+
+function renderTags() {
+  const container = document.getElementById('tag-chips');
+  container.innerHTML = _currentTags.map((t, idx) =>
+    `<span class="tag-chip" style="background:${tagColor(t)}">${esc(t)}<button class="tag-chip-remove" data-idx="${idx}">&times;</button></span>`
+  ).join('');
+}
+
+function addTag(val) {
+  const t = val.trim();
+  if (t && !_currentTags.includes(t)) { _currentTags.push(t); renderTags(); }
+}
+
+function tierBadgeInline(name) {
+  if (!name) return '';
+  const cls = 'tier-' + name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z-]/g, '');
+  return `<span class="tier-badge ${cls}">${esc(name)}</span>`;
+}
+
+function toLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function esc(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>

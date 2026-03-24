@@ -4,6 +4,9 @@
 
 let _user = null;
 
+// Admin email whitelist (fallback when Netlify Identity roles are not set)
+window.NARP_ADMINS = ['grisales4000@gmail.com'];
+
 function initAuth(onReady) {
   if (typeof netlifyIdentity === 'undefined') {
     if (onReady) onReady(null);

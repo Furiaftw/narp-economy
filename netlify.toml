@@ -26,6 +26,11 @@
   status = 200
 
 [[redirects]]
+  from = "/auction"
+  to   = "/auction.html"
+  status = 200
+
+[[redirects]]
   from = "/income"
   to   = "/income.html"
   status = 200

@@ -53,17 +53,19 @@ exports.handler = async (event) => {
     const store = getStore('economy');
 
     // Read all data in parallel
-    const [configRaw, shopRaw, incomesRaw, historyRaw] = await Promise.all([
+    const [configRaw, shopRaw, incomesRaw, historyRaw, auctionsRaw] = await Promise.all([
       store.get('config',  { type: 'json' }).catch(() => null),
       store.get('shop',    { type: 'json' }).catch(() => null),
       store.get('incomes', { type: 'json' }).catch(() => null),
       store.get('history', { type: 'json' }).catch(() => null),
+      store.get('auctions', { type: 'json' }).catch(() => null),
     ]);
 
     const config  = configRaw  || DEFAULT_CONFIG;
     const shop    = shopRaw    || [];
     const incomes = incomesRaw || DEFAULT_INCOMES;
     const history = historyRaw || [];
+    const auctions = auctionsRaw || [];
 
     // Calculate derived meta from latest history row
     const latest      = history.length > 0 ? history[history.length - 1] : null;
@@ -122,6 +124,7 @@ exports.handler = async (event) => {
         income_types: enrichedIncomes,
         tiers:        config.tiers || DEFAULT_CONFIG.tiers,
         history,
+        auctions,
       }),
     };
   } catch (err) {
