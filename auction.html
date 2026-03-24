@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://identity.netlify.com/v1/netlify-identity-widget.js"></script>
   <style>
-    .auction-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1.5rem; margin-bottom: 2.5rem; }
+    .auction-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 1.25rem; margin-bottom: 2.5rem; }
     .auction-card {
       background: var(--ink-mid);
       border: 1px solid var(--border-dim);
@@ -144,7 +144,7 @@
       color: var(--ash);
     }
     .ended-toggle-arrow.open { transform: rotate(90deg); }
-    .upcoming-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+    .upcoming-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
     .upcoming-card {
       background: var(--ink-mid);
       border: 1px solid var(--border-dim);
@@ -173,6 +173,14 @@
       text-transform: uppercase;
       color: var(--ash);
     }
+    @media (max-width: 768px) {
+      .auction-card { padding: 1.25rem; }
+      .auction-card-img { height: 140px; }
+      .auction-name { font-size: 1rem; }
+      .auction-countdown { font-size: 0.95rem; padding: 0.6rem; }
+      .upcoming-card { padding: 1rem; }
+      .empty-state { padding: 2rem; }
+    }
   </style>
 </head>
 <body>
@@ -180,8 +188,7 @@
 
 <section class="hero" style="padding:3.5rem 2rem 2.5rem">
   <div class="hero-seal">競</div>
-  <div class="hero-kamon">🏛️</div>
-  <div class="hero-eyebrow">Ninja Art Roleplay Platform</div>
+  <div class="hero-eyebrow">Ninja Art Roleplay</div>
   <h1 class="hero-title">The <em>Auction</em> House</h1>
   <p class="hero-sub">Limited items up for bid. All bidding is handled in Discord — place bids in #auction-house.</p>
 </section>
@@ -238,7 +245,6 @@ async function render() {
     html += sectionHeader('Active Auctions');
     if (active.length === 0) {
       html += `<div class="empty-state fade-in">
-        <div class="empty-state-icon">🏛️</div>
         <div class="empty-state-text">No active auctions. Check back soon.</div>
       </div>`;
     } else {
