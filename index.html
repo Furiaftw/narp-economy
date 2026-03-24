@@ -12,8 +12,7 @@
 
 <section class="hero" style="padding:3.5rem 2rem 2.5rem">
   <div class="hero-seal">両</div>
-  <div class="hero-kamon">🛒</div>
-  <div class="hero-eyebrow">Ninja Art Roleplay Platform</div>
+  <div class="hero-eyebrow">Ninja Art Roleplay</div>
   <h1 class="hero-title">The <em>Shop</em></h1>
   <p class="hero-sub">All prices reflect the current economy and update weekly.</p>
 </section>
@@ -22,7 +21,7 @@
   <div id="shop-root"><div class="loading-seal"><div class="spinner"></div><p>Loading shop...</p></div></div>
 </div>
 
-<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Ninja Art Roleplay Platform</span></footer>
+<footer class="footer">NARP Economy &nbsp;·&nbsp; <span>Ninja Art Roleplay</span></footer>
 
 <script type="module">
 import { fetchAPI, fmtRyo, getTiers, tierCSSClass } from '/js/api.js';
@@ -60,8 +59,7 @@ async function render() {
     if (allItems.length === 0) {
       root.innerHTML = `
         <div style="text-align:center;padding:4rem 2rem;color:var(--ash)">
-          <div style="font-size:2rem;margin-bottom:1rem">🏪</div>
-          <div style="font-family:var(--ff-display);font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.5rem">No Items Yet</div>
+          <div style="font-family:var(--ff-display);font-size:0.75rem;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.5rem;color:var(--ash-light)">No Items Yet</div>
           <p style="font-style:italic">The shop is being stocked. Check back soon.</p>
         </div>`;
       return;
