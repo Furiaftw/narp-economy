@@ -305,6 +305,7 @@ function renderPage() {
       notes:          document.getElementById('f-notes').value.trim(),
     };
 
+    const prevAuctions = [..._auctions];
     if (_editId) {
       _auctions = _auctions.map(a => a._id === _editId ? newAuction : a);
     } else {
@@ -320,6 +321,7 @@ function renderPage() {
       _editId = null; _currentTags = [];
       renderPage();
     } catch (err) {
+      _auctions = prevAuctions;
       alert('Save failed: ' + err.message);
       btn.textContent = _editId ? 'Update Auction' : 'Create Auction'; btn.disabled = false;
     }
@@ -352,13 +354,17 @@ function renderPage() {
       const id = delBtn.dataset.id;
       const auction = _auctions.find(a => a._id === id);
       if (!auction || !confirm('Delete "' + auction.item_name + '"?')) return;
+      const prevAuctions = [..._auctions];
       _auctions = _auctions.filter(a => a._id !== id);
       try {
         await adminSave('auctions', _auctions);
         _data = await forceRefresh();
         _auctions = (_data.auctions || []).map((a, i) => ({ ...a, _id: a._id || 'auction_' + i }));
         renderPage();
-      } catch (err) { alert('Delete failed: ' + err.message); }
+      } catch (err) {
+        _auctions = prevAuctions;
+        alert('Delete failed: ' + err.message);
+      }
     }
   });
 }

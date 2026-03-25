@@ -25,13 +25,19 @@ exports.handler = async (event, context) => {
     return { statusCode: 401, headers, body: JSON.stringify({ error: 'Not authenticated' }) };
   }
 
+  // Check JWT roles (Netlify Identity app_metadata)
+  const roles = user.app_metadata?.roles || [];
+  const hasAdminRole = roles.includes('admin');
+
   // Check email against ADMIN_EMAILS environment variable
   const adminEmails = (process.env.ADMIN_EMAILS || '')
     .split(',')
     .map(e => e.trim().toLowerCase())
     .filter(Boolean);
+  const emailAllowed = adminEmails.length === 0 || adminEmails.includes(user.email.toLowerCase());
 
-  if (adminEmails.length > 0 && !adminEmails.includes(user.email.toLowerCase())) {
+  // Allow if user has admin role OR email is in ADMIN_EMAILS list
+  if (!hasAdminRole && !emailAllowed) {
     return { statusCode: 403, headers, body: JSON.stringify({ error: 'Not authorized' }) };
   }
 

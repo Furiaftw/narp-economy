@@ -309,6 +309,7 @@ function renderPage() {
       custom_ryo:   _pricingMode === 'ryo'  ? parseFloat(document.getElementById('f-ryo').value)||0 : 0,
     };
 
+    const prevItems = [..._items];
     if (_editId) {
       _items = _items.map(i => i._id === _editId ? newItem : i);
     } else {
@@ -324,6 +325,7 @@ function renderPage() {
       _editId = null; _pricingMode = 'tier'; _currentTags = [];
       renderPage();
     } catch(err) {
+      _items = prevItems;
       alert('Save failed: ' + err.message);
       btn.textContent = 'Save Item'; btn.disabled = false;
     }
@@ -369,13 +371,17 @@ function renderPage() {
       const id   = delBtn.dataset.id;
       const item = _items.find(i => i._id === id);
       if (!item || !confirm('Delete "' + item.name + '"?')) return;
+      const prevItems = [..._items];
       _items = _items.filter(i => i._id !== id);
       try {
         await adminSave('shop', _items);
         _data  = await forceRefresh();
         _items = (_data.shop_items||[]).map((it,i) => ({ ...it, _id: it._id||'item_'+i }));
         renderPage();
-      } catch(err) { alert('Delete failed: ' + err.message); }
+      } catch(err) {
+        _items = prevItems;
+        alert('Delete failed: ' + err.message);
+      }
     }
   });
 }
